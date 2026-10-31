@@ -1,5 +1,10 @@
 import java.sql.*;
 
+/**
+ * A collection of SQL static helper methods
+ *
+ * @author Richmond Salvador
+ */
 public class SqlUtils {
     private static final String URL = "jdbc:mysql://localhost:3306/G09_lrtops";
     private static final String USER = "appuser";
@@ -8,6 +13,11 @@ public class SqlUtils {
     private static final String RESET = "\u001b[0m";
     private static final String BOLD = "\u001b[1m";
 
+    /**
+     * Creates and returns a connection to the database.
+     *
+     * @return a connection object that is successfully connected to the database. It returns null if the connection failed.
+     */
     public static Connection getConnection() {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
@@ -18,6 +28,13 @@ public class SqlUtils {
         }
     }
 
+    /**
+     * Displays the results of an SQL statement in the terminal in a formatted manner.
+     * It would first display the labels in the result, then every row in the result.
+     * It would print nothing if the specified result is null.
+     *
+     * @param result the result of the executed SQL statement
+     */
     public static void displayResult(ResultSet result) {
         if (result == null) {
             System.err.println("Invalid argument, the passed result cannot be null nor empty");
