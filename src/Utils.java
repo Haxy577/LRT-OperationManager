@@ -1,24 +1,26 @@
 import java.sql.*;
+import java.util.Scanner;
 
 /**
- * A collection of SQL static helper methods
+ * A collection of static helper methods
  *
  * @author Richmond Salvador
  */
-public class SqlUtils {
+public class Utils {
     private static final String URL = "jdbc:mysql://localhost:3306/G09_lrtops";
     private static final String USER = "appuser";
     private static final String PASSWORD = "password";
 
     private static final String RESET = "\u001b[0m";
     private static final String BOLD = "\u001b[1m";
+    private static final String RED = "\u001b[31m";
 
     /**
      * Creates and returns a connection to the database.
      *
      * @return a connection object that is successfully connected to the database. It returns null if the connection failed.
      */
-    public static Connection getConnection() {
+    public static Connection getSqlConnection() {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
             return DriverManager.getConnection(URL, USER, PASSWORD);
@@ -35,7 +37,7 @@ public class SqlUtils {
      *
      * @param result the result of the executed SQL statement
      */
-    public static void displayResult(ResultSet result) {
+    public static void displaySqlResult(ResultSet result) {
         if (result == null) {
             System.err.println("Invalid argument, the passed result cannot be null nor empty");
             return;
@@ -75,6 +77,38 @@ public class SqlUtils {
             System.out.println(divider);
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Displays a menu display with the prompt and the choices the user can pick. Would also handle obtaining a valid input
+     * from the user. It would return the corresponding index of the chosen option.
+     *
+     * @param prompt a instruction telling the user what to do or what is the menu about
+     * @param options an array of strings representing every choice the user can pick from
+     * @return the corresponding index in the choices array representing the choice that the user made
+     */
+    public static int displayMenu(String prompt, String[] options) {
+        if (options == null || options.length < 1) System.err.println("The provided options cannot be null nor empty");
+
+        System.out.println(prompt);
+        int len = options.length;
+        for (int i = 0; i < len; i++) System.out.printf("  [%d] %s\n", i + 1, options[i]);
+
+        Scanner sc = new Scanner(System.in);
+        while (true) {
+            System.out.print("Please enter your choice: ");
+            String input = sc.nextLine();
+            if (input.matches("^[0-9]+$")) {
+                int choice = Integer.parseInt(input);
+                if (choice >= 1 && choice <= len) {
+                    sc.close();
+                    return choice - 1;
+                }
+            }
+
+            // if input is invalid then print error message
+            System.out.println(RED + "Please enter an integer between 1 to " + len + "!" + RESET);
         }
     }
 }
