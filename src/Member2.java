@@ -1,3 +1,5 @@
+import java.util.List;
+
 /**
  * Member 2: Train management and supporting Service tasks
  * <p>
@@ -34,26 +36,48 @@ public class Member2 implements Application {
         };
         String prompt = "Choose which category you want to manage:";
         switch (Utils.displayMenu(prompt, options)) {
-            case 1:
+            case 0:
                 trainMenu();
                 break;
-            case 2:
+            case 1:
                 taskMenu();
                 break;
         }
     }
 
     private void trainMenu() {
-        String prompt = "Which operation do you wish to do:";
-        String[] options = {
-                "Create new train record",
-                "Search the train database",
-                "Edit an existing train record",
-                "Delete an existing train record",
-                "Go back"
-        };
-        int operation = Utils.displayMenu(prompt, options);
-        if (operation == options.length - 1) return;
+        while (true) {
+            String prompt = "Which operation do you wish to do:";
+            String[] options = {
+                    "Create new train record",
+                    "Search the train database",
+                    "Edit an existing train record",
+                    "Delete an existing train record",
+                    "Go back"
+            };
+            switch (Utils.displayMenu(prompt, options)) {
+                case 0 -> {
+
+                }
+                // Search
+                case 1 -> {
+                    String sql = "SELECT t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.tasktype AS dutytype, s.loadton, t.active " +
+                                 "FROM train t LEFT JOIN passengertrain p ON t.trainno = p.trainno " +
+                                 "LEFT JOIN servicetrain s ON t.trainno = s.trainno";
+                    List<Filter> filters = List.of(
+                            new Filter("t.trainno", "Train Reference", null),
+                            new Filter("t.label", "Train Label", null),
+                            new Filter("t.traintyp", "Train Type", new String[]{"Passenger", "Service"}),
+                            new Filter("t.active", "Train Activation Status", new String[]{"1", "0"}),
+                            new Filter("s.tasktype", "Train Duty Type", new String[]{"Inspection", "Maintenance", "Recovery"})
+                    );
+                    Utils.displaySqlResult(Utils.sqlSearch("Trains", sql, filters));
+                }
+                default -> {
+                    return;
+                }
+            }
+        }
     }
 
     private void taskMenu() {
