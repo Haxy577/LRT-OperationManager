@@ -48,7 +48,6 @@ public class Member2 implements Application {
         String[] options = {
                 "Create new train record",
                 "Search the train database",
-                "Retrieve a single train record",
                 "Edit an existing train record",
                 "Delete an existing train record",
                 "Go back"
@@ -60,7 +59,6 @@ public class Member2 implements Application {
         String[] options = {
                 "Create new service task record",
                 "Search the service task database",
-                "Retrieve a single service task record",
                 "Edit an existing service task record",
                 "Delete an existing service task record",
                 "Go back"
