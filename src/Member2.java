@@ -52,6 +52,8 @@ public class Member2 implements Application {
                 "Delete an existing train record",
                 "Go back"
         };
+        int operation = Utils.displayMenu(prompt, options);
+        if (operation == options.length - 1) return;
     }
 
     private void taskMenu() {
@@ -63,6 +65,8 @@ public class Member2 implements Application {
                 "Delete an existing service task record",
                 "Go back"
         };
+        int operation = Utils.displayMenu(prompt, options);
+        if (operation == options.length - 1) return;
     }
 
 }
