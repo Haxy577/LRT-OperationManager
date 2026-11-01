@@ -1,6 +1,7 @@
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Scanner;
 
 /**
@@ -139,7 +140,7 @@ public class Utils {
             // Execute search
             else if (choice == len - 2) {
                 sc.close();
-                // perform the search
+                executeSqlSearch(baseSql, filters);
             }
             // Reset all filters
             else if (choice == len - 3) {
@@ -149,7 +150,7 @@ public class Utils {
                 Filter selected = filters.get(choice);
                 if (selected.getOptions() == null) {
                     System.out.print("Enter " + selected.getLabel() + " filter value (Leave blank to reset): ");
-                    String input = sc.nextLine();
+                    String input = sc.nextLine().trim();
                     selected.setSelectedValue((input.isEmpty()) ? null : input);
                 } else {
                     List<String> options = new ArrayList<>(List.of(selected.getOptions()));
@@ -158,6 +159,36 @@ public class Utils {
                     selected.setSelectedValue((val == options.size() - 1) ? null : options.get(val));
                 }
             }
+        }
+    }
+
+    public static ResultSet executeSqlSearch(String baseSql, List<Filter> filters) {
+        // Make sure there is a space between the baseSql to separate the conditions to be added
+        StringBuffer query = new StringBuffer(baseSql);
+        query.append(" ");
+
+        // Check if the original sql already contains a WHERE statement
+        boolean hasWhere = baseSql.toUpperCase().contains("WHERE");
+
+        // Add the filter conditions
+        for (Filter f : filters) {
+            String val = f.getSelectedValue();
+            if (val == null) continue;
+            if (!hasWhere) {
+                query.append(String.format("WHERE %s = %s ", f.getFieldName(), f.getSelectedValue()));
+                hasWhere = true;
+            } else {
+                query.append(String.format("AND %s = %s ", f.getFieldName(), f.getSelectedValue()));
+            }
+        }
+
+        // terminate the query and return its result
+        query.append(";");
+        try {
+            return getSqlConnection().createStatement().executeQuery(query.toString());
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
         }
     }
 }
