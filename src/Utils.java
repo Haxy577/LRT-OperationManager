@@ -2,7 +2,7 @@ import java.sql.*;
 import java.util.Scanner;
 
 /**
- * A collection of SQL static helper methods
+ * A collection of static helper methods
  *
  * @author Richmond Salvador
  */
@@ -80,6 +80,14 @@ public class Utils {
         }
     }
 
+    /**
+     * Displays a menu display with the prompt and the choices the user can pick. Would also handle obtaining a valid input
+     * from the user. It would return the corresponding index of the chosen option.
+     *
+     * @param prompt a instruction telling the user what to do or what is the menu about
+     * @param options an array of strings representing every choice the user can pick from
+     * @return the corresponding index in the choices array representing the choice that the user made
+     */
     public static int displayMenu(String prompt, String[] options) {
         if (options == null || options.length < 1) System.err.println("The provided options cannot be null nor empty");
 
@@ -95,7 +103,7 @@ public class Utils {
                 int choice = Integer.parseInt(input);
                 if (choice >= 1 && choice <= len) {
                     sc.close();
-                    return choice;
+                    return choice - 1;
                 }
             }
 
