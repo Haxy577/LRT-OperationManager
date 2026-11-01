@@ -105,7 +105,6 @@ public class Utils {
             if (input.matches("^[0-9]+$")) {
                 int choice = Integer.parseInt(input);
                 if (choice >= 1 && choice <= len) {
-                    sc.close();
                     return choice - 1;
                 }
             }
@@ -115,7 +114,7 @@ public class Utils {
         }
     }
 
-    public static void sqlSearch(String tableName, String baseSql, List<Filter> filters) {
+    public static ResultSet sqlSearch(String tableName, String baseSql, List<Filter> filters) {
         Scanner sc = new Scanner(System.in);
 
         while (true) {
@@ -134,13 +133,11 @@ public class Utils {
 
             // Return to previous menu
             if (choice == len - 1) {
-                sc.close();
-                return;
+                return null;
             }
             // Execute search
             else if (choice == len - 2) {
-                sc.close();
-                executeSqlSearch(baseSql, filters);
+                return executeSqlSearch(baseSql, filters);
             }
             // Reset all filters
             else if (choice == len - 3) {
@@ -150,7 +147,9 @@ public class Utils {
                 Filter selected = filters.get(choice);
                 if (selected.getOptions() == null) {
                     System.out.print("Enter " + selected.getLabel() + " filter value (Leave blank to reset): ");
-                    String input = sc.nextLine().trim();
+                    String input = null;
+                    while (input == null) input = sc.nextLine();
+                    input = input.trim();
                     selected.setSelectedValue((input.isEmpty()) ? null : input);
                 } else {
                     List<String> options = new ArrayList<>(List.of(selected.getOptions()));
@@ -175,15 +174,16 @@ public class Utils {
             String val = f.getSelectedValue();
             if (val == null) continue;
             if (!hasWhere) {
-                query.append(String.format("WHERE %s = %s ", f.getFieldName(), f.getSelectedValue()));
+                query.append(String.format("WHERE %s = '%s' ", f.getFieldName(), f.getSelectedValue()));
                 hasWhere = true;
             } else {
-                query.append(String.format("AND %s = %s ", f.getFieldName(), f.getSelectedValue()));
+                query.append(String.format("AND %s = '%s' ", f.getFieldName(), f.getSelectedValue()));
             }
         }
 
         // terminate the query and return its result
         query.append(";");
+        System.out.println(query.toString());
         try {
             return getSqlConnection().createStatement().executeQuery(query.toString());
         } catch (SQLException e) {
