@@ -130,8 +130,34 @@ public class Utils {
 
             int len = menu.size();
             int choice = displayMenu("Configure " + tableName + "search filters, then select 'Execute search':", menu.toArray(new String[0]));
-        }
 
-        sc.close();
+            // Return to previous menu
+            if (choice == len - 1) {
+                sc.close();
+                return;
+            }
+            // Execute search
+            else if (choice == len - 2) {
+                sc.close();
+                // perform the search
+            }
+            // Reset all filters
+            else if (choice == len - 3) {
+                for (Filter f : filters) f.setSelectedValue(null);
+            }
+            else {
+                Filter selected = filters.get(choice);
+                if (selected.getOptions() == null) {
+                    System.out.print("Enter " + selected.getLabel() + " filter value (Leave blank to reset): ");
+                    String input = sc.nextLine();
+                    selected.setSelectedValue((input.isEmpty()) ? null : input);
+                } else {
+                    List<String> options = new ArrayList<>(List.of(selected.getOptions()));
+                    options.add("Reset");
+                    int val = displayMenu("Enter " + selected.getLabel() + " filter value:", options.toArray(new String[0]));
+                    selected.setSelectedValue((val == options.size() - 1) ? null : options.get(val));
+                }
+            }
+        }
     }
 }
