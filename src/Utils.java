@@ -5,7 +5,7 @@ import java.sql.*;
  *
  * @author Richmond Salvador
  */
-public class SqlUtils {
+public class Utils {
     private static final String URL = "jdbc:mysql://localhost:3306/G09_lrtops";
     private static final String USER = "appuser";
     private static final String PASSWORD = "password";
@@ -18,7 +18,7 @@ public class SqlUtils {
      *
      * @return a connection object that is successfully connected to the database. It returns null if the connection failed.
      */
-    public static Connection getConnection() {
+    public static Connection getSqlConnection() {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
             return DriverManager.getConnection(URL, USER, PASSWORD);
@@ -35,7 +35,7 @@ public class SqlUtils {
      *
      * @param result the result of the executed SQL statement
      */
-    public static void displayResult(ResultSet result) {
+    public static void displaySqlResult(ResultSet result) {
         if (result == null) {
             System.err.println("Invalid argument, the passed result cannot be null nor empty");
             return;
