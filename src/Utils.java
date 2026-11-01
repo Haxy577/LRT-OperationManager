@@ -1,4 +1,7 @@
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.Scanner;
 
 /**
@@ -102,13 +105,90 @@ public class Utils {
             if (input.matches("^[0-9]+$")) {
                 int choice = Integer.parseInt(input);
                 if (choice >= 1 && choice <= len) {
-                    sc.close();
                     return choice - 1;
                 }
             }
 
             // if input is invalid then print error message
             System.out.println(RED + "Please enter an integer between 1 to " + len + "!" + RESET);
+        }
+    }
+
+    public static ResultSet sqlSearch(String tableName, String baseSql, List<Filter> filters) {
+        Scanner sc = new Scanner(System.in);
+
+        while (true) {
+            // Create the menu
+            List<String> menu = new ArrayList<>();
+            for (Filter f : filters) {
+                String valDisplay = (f.getSelectedValue() != null) ? f.getSelectedValue() : "None";
+                menu.add(String.format("%-25s -> %s", f.getLabel(), valDisplay));
+            }
+            menu.add("Reset all filters");
+            menu.add("Execute search");
+            menu.add("Return");
+
+            int len = menu.size();
+            int choice = displayMenu("Configure " + tableName + "search filters, then select 'Execute search':", menu.toArray(new String[0]));
+
+            // Return to previous menu
+            if (choice == len - 1) {
+                return null;
+            }
+            // Execute search
+            else if (choice == len - 2) {
+                return executeSqlSearch(baseSql, filters);
+            }
+            // Reset all filters
+            else if (choice == len - 3) {
+                for (Filter f : filters) f.setSelectedValue(null);
+            }
+            else {
+                Filter selected = filters.get(choice);
+                if (selected.getOptions() == null) {
+                    System.out.print("Enter " + selected.getLabel() + " filter value (Leave blank to reset): ");
+                    String input = null;
+                    while (input == null) input = sc.nextLine();
+                    input = input.trim();
+                    selected.setSelectedValue((input.isEmpty()) ? null : input);
+                } else {
+                    List<String> options = new ArrayList<>(List.of(selected.getOptions()));
+                    options.add("Reset");
+                    int val = displayMenu("Enter " + selected.getLabel() + " filter value:", options.toArray(new String[0]));
+                    selected.setSelectedValue((val == options.size() - 1) ? null : options.get(val));
+                }
+            }
+        }
+    }
+
+    public static ResultSet executeSqlSearch(String baseSql, List<Filter> filters) {
+        // Make sure there is a space between the baseSql to separate the conditions to be added
+        StringBuffer query = new StringBuffer(baseSql);
+        query.append(" ");
+
+        // Check if the original sql already contains a WHERE statement
+        boolean hasWhere = baseSql.toUpperCase().contains("WHERE");
+
+        // Add the filter conditions
+        for (Filter f : filters) {
+            String val = f.getSelectedValue();
+            if (val == null) continue;
+            if (!hasWhere) {
+                query.append(String.format("WHERE %s = '%s' ", f.getFieldName(), f.getSelectedValue()));
+                hasWhere = true;
+            } else {
+                query.append(String.format("AND %s = '%s' ", f.getFieldName(), f.getSelectedValue()));
+            }
+        }
+
+        // terminate the query and return its result
+        query.append(";");
+        System.out.println(query.toString());
+        try {
+            return getSqlConnection().createStatement().executeQuery(query.toString());
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
         }
     }
 }
