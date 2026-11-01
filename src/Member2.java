@@ -27,6 +27,42 @@ public class Member2 implements Application {
 
     @Override
     public void menu() {
-
+        String[] options = {
+                "Manage Trains",
+                "Manage Support Tasks",
+                "Exit"
+        };
+        String prompt = "Choose which category you want to manage:";
+        switch (Utils.displayMenu(prompt, options)) {
+            case 1:
+                trainMenu();
+                break;
+            case 2:
+                taskMenu();
+                break;
+        }
     }
+
+    private void trainMenu() {
+        String prompt = "Which operation do you wish to do:";
+        String[] options = {
+                "Create new train record",
+                "Search the train database",
+                "Edit an existing train record",
+                "Delete an existing train record",
+                "Go back"
+        };
+    }
+
+    private void taskMenu() {
+        String prompt = "Which operation do you wish to do:";
+        String[] options = {
+                "Create new service task record",
+                "Search the service task database",
+                "Edit an existing service task record",
+                "Delete an existing service task record",
+                "Go back"
+        };
+    }
+
 }
