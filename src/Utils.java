@@ -1,4 +1,6 @@
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 /**
@@ -110,5 +112,26 @@ public class Utils {
             // if input is invalid then print error message
             System.out.println(RED + "Please enter an integer between 1 to " + len + "!" + RESET);
         }
+    }
+
+    public static void sqlSearch(String tableName, String baseSql, List<Filter> filters) {
+        Scanner sc = new Scanner(System.in);
+
+        while (true) {
+            // Create the menu
+            List<String> menu = new ArrayList<>();
+            for (Filter f : filters) {
+                String valDisplay = (f.getSelectedValue() != null) ? f.getSelectedValue() : "None";
+                menu.add(String.format("%-25s -> %s", f.getLabel(), valDisplay));
+            }
+            menu.add("Reset all filters");
+            menu.add("Execute search");
+            menu.add("Return");
+
+            int len = menu.size();
+            int choice = displayMenu("Configure " + tableName + "search filters, then select 'Execute search':", menu.toArray(new String[0]));
+        }
+
+        sc.close();
     }
 }
