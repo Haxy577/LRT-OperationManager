@@ -77,4 +77,9 @@ public class Utils {
             throw new RuntimeException(e);
         }
     }
+
+    public static void displayMenu(String prompt, String[] options) {
+        System.out.println(prompt);
+        for (int i = 0; i < options.length; i++) System.out.printf("  [%d] %s\n", i + 1, options[i]);
+    }
 }
