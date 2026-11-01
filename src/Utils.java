@@ -1,7 +1,6 @@
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Scanner;
 
 /**
@@ -68,7 +67,7 @@ public class Utils {
                 StringBuffer row = new StringBuffer("|");
                 for (int i = 1; i <= fields; i++) {
                     String res = result.getString(i);
-                    if (res == null) res = "NULL";
+                    if (res == null) res = "";
 
                     int width = sizes[i - 1];
                     if (res.length() > width) res = res.substring(0, width - 3) + "..."; // if longer than the width, truncate the string
@@ -129,7 +128,7 @@ public class Utils {
             menu.add("Return");
 
             int len = menu.size();
-            int choice = displayMenu("Configure " + tableName + "search filters, then select 'Execute search':", menu.toArray(new String[0]));
+            int choice = displayMenu("Configure " + tableName + " search filters, then select 'Execute search':", menu.toArray(new String[0]));
 
             // Return to previous menu
             if (choice == len - 1) {
@@ -183,7 +182,6 @@ public class Utils {
 
         // terminate the query and return its result
         query.append(";");
-        System.out.println(query.toString());
         try {
             return getSqlConnection().createStatement().executeQuery(query.toString());
         } catch (SQLException e) {
