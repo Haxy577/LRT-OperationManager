@@ -22,5 +22,10 @@
  *
  * @author
  */
-public class Member4 {
+public class Member4 implements Application{
+
+    @Override
+    public void menu() {
+
+    }
 }

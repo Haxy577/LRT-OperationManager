@@ -23,5 +23,10 @@
  *
  * @author Richmond Salvador
  */
-public class Member2 {
+public class Member2 implements Application {
+
+    @Override
+    public void menu() {
+
+    }
 }
