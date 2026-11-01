@@ -1,4 +1,5 @@
 import java.sql.*;
+import java.util.Scanner;
 
 /**
  * A collection of SQL static helper methods
@@ -12,6 +13,7 @@ public class Utils {
 
     private static final String RESET = "\u001b[0m";
     private static final String BOLD = "\u001b[1m";
+    private static final String RED = "\u001b[31m";
 
     /**
      * Creates and returns a connection to the database.
@@ -78,8 +80,27 @@ public class Utils {
         }
     }
 
-    public static void displayMenu(String prompt, String[] options) {
+    public static int displayMenu(String prompt, String[] options) {
+        if (options == null || options.length < 1) System.err.println("The provided options cannot be null nor empty");
+
         System.out.println(prompt);
-        for (int i = 0; i < options.length; i++) System.out.printf("  [%d] %s\n", i + 1, options[i]);
+        int len = options.length;
+        for (int i = 0; i < len; i++) System.out.printf("  [%d] %s\n", i + 1, options[i]);
+
+        Scanner sc = new Scanner(System.in);
+        while (true) {
+            System.out.print("Please enter your choice: ");
+            String input = sc.nextLine();
+            if (input.matches("^[0-9]+$")) {
+                int choice = Integer.parseInt(input);
+                if (choice >= 1 && choice <= len) {
+                    sc.close();
+                    return choice;
+                }
+            }
+
+            // if input is invalid then print error message
+            System.out.println(RED + "Please enter an integer between 1 to " + len + "!" + RESET);
+        }
     }
 }
