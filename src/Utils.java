@@ -193,15 +193,19 @@ public class Utils {
     public static boolean isValidInput(String input, String expectedType) {
         if (input == null || expectedType == null) return false;
         expectedType = expectedType.trim().toUpperCase();
+
+        // Check if the number has to be unsigned
+        if (expectedType.contains("UNSIGNED") && input.contains("-")) {
+            System.out.println(displayInputError("SIGNED"));
+            return false;
+        }
+
+        // remove other words
+        input = input.substring(0, input.indexOf(' '));
+
         try {
             switch (expectedType) {
-                case "INT", "INT UNSIGNED", "TINYINT", "SMALLINT", "INTEGER" -> {
-                    int num = Integer.parseInt(input);
-                    if (expectedType == "INT UNSIGNED" && num < 0) {
-                        System.out.println(displayInputError("SIGNED"));
-                        return false;
-                    }
-                }
+                case "INT", "TINYINT", "SMALLINT", "INTEGER" -> Integer.parseInt(input);
                 case "DECIMAL" -> Double.parseDouble(input);
                 case "DATE" -> Date.valueOf(input);
                 case "DATETIME" -> Timestamp.valueOf(input);
@@ -222,7 +226,7 @@ public class Utils {
             case "DATE" -> "Please input a date in this format (YYYY-MM-DD)";
             case "DATETIME" -> "Please input a date and time in this format (YYYY-MM-DD HH:MM:SS)";
             case "IDENTIFIER" -> "Please input a different value, this already exists in the database";
-            case "SIGNED" -> "Please input a positive integer";
+            case "SIGNED" -> "Please input a positive number";
             default -> "Error";
         };
         return RED + "Invalid input: " + msg + RESET;
