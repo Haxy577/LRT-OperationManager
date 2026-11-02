@@ -239,6 +239,7 @@ public class Utils {
             case "SIGNED" -> "Please input a positive number";
             case "NO_RECORD" -> "Please input an identifier for an existing record in the database";
             case "LENGTH" -> "Please input a shorter text";
+            case "DELETE" -> "Cannot delete the record due to it being referenced in other tables";
             default -> "Error";
         };
         return RED + "Invalid input: " + msg + RESET;
@@ -254,5 +255,45 @@ public class Utils {
         } catch (SQLException e) {
             return false;
         }
+    }
+
+    public static boolean safeDeleteRecord(String table, String[] relatedTables, String field, String value) {
+        Connection c = getSqlConnection();
+        if (c == null) return false;
+
+        try {
+            // get revision number
+            String sql = String.format("SELECT revno FROM %s WHERE %s = ?;", table, field);
+            PreparedStatement ps = c.prepareStatement(sql);
+            ps.setString(1, value);
+            ResultSet res = ps.executeQuery();
+
+            // if there was no match
+            if (!res.next()) {
+                System.out.println(displayInputError("NO_RECORD"));
+                return false;
+            }
+            int revno = res.getInt("revno");
+
+            // check if value exists in other tables
+            if (relatedTables != null) {
+                for (String t : relatedTables) {
+                    if (doesRecordExist(t, field, value)) {
+                        System.out.println(displayInputError("DELETE"));
+                        return false;
+                    }
+                }
+            }
+
+            // delete the record
+            sql = String.format("DELETE FROM %s WHERE %s = ? AND revno = ?;", table, field);
+            ps = c.prepareStatement(sql);
+            ps.setString(1, value);
+            ps.setInt(2, revno);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            return false;
+        }
+        return true;
     }
 }
