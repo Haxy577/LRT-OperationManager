@@ -1,4 +1,5 @@
 import java.sql.*;
+import java.sql.Date;
 import java.util.*;
 
 /**
@@ -282,7 +283,7 @@ public class Member2 implements Application {
             int choice = Utils.displayMenu("Modify every field, then choose 'Create Service Task' afterwards:", menu.toArray(new String[0]));
 
             if (choice == base) Arrays.fill(values, null); // reset
-            else if (choice == base + 1) saveTaskRecord(); // save
+            else if (choice == base + 1) saveTaskRecord(values); // save
             else if (choice == base + 2) return; // return
             else handleCreateTaskInput(choice, values); // modify
         }
@@ -345,8 +346,24 @@ public class Member2 implements Application {
         }
     }
 
-    private void saveTaskRecord() {
+    private void saveTaskRecord(String[] values) {
+        try {
+            Connection c = Utils.getSqlConnection();
+            if (c == null) return;
 
+            String sql = "INSERT INTO servicetask (taskno, trainno, taskdate, tasktype, hours, details, revno) VALUES (?, ?, ?, ?, ?, ?, 1);";
+            PreparedStatement ps = c.prepareStatement(sql);
+
+            ps.setString(1, values[0]);
+            ps.setString(2, values[1]);
+            ps.setDate(3, Date.valueOf(values[2]));
+            ps.setString(4, values[3]);
+            ps.setDouble(5, Double.parseDouble(values[4]));
+            ps.setString(6, values[5]);
+            ps.execute();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private ResultSet retrieveTrainRecord(String trainRef) {
