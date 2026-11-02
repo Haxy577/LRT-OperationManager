@@ -232,4 +232,17 @@ public class Utils {
         };
         return RED + "Invalid input: " + msg + RESET;
     }
+
+    public static boolean doesRecordExist(String table, String field, String value) {
+        Connection c = getSqlConnection();
+        try {
+            PreparedStatement ps = c.prepareStatement("SELECT * FROM ? WHERE ? = ?;");
+            ps.setString(1, table);
+            ps.setString(2, field);
+            ps.setString(3, value);
+            return ps.executeQuery().next();
+        } catch (SQLException e) {
+            return false;
+        }
+    }
 }
