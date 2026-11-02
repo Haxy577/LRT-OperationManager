@@ -59,7 +59,6 @@ public class Member2 implements Application {
             };
             switch (Utils.displayMenu(prompt, options)) {
                 case 0 -> createTrain();
-                // Search
                 case 1 -> {
                     String sql = "SELECT t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, t.active " +
                                  "FROM train t LEFT JOIN passengertrain p ON t.trainno = p.trainno " +
@@ -104,11 +103,24 @@ public class Member2 implements Application {
                     );
                     Utils.displaySqlResult(Utils.sqlSearch("Trains", sql, filters));
                 }
+                case 3 -> deleteTask();
                 default -> {
                     return;
                 }
             }
         }
+    }
+
+    private void deleteTask() {
+        Scanner sc = new Scanner(System.in);
+        do {
+            System.out.print("Input the Task Reference of the record you wish to delete (blank to return): ");
+            String in = sc.nextLine();
+            if (in.isEmpty()) return;
+            if (Utils.isValidInput(in, "VARCHAR 16"))
+                if (Utils.safeDeleteRecord("servicetask", null, "taskno", in))
+                    break;
+        } while (true);
     }
 
     private void createTrain() {
