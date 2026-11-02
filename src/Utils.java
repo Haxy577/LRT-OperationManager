@@ -200,6 +200,15 @@ public class Utils {
             return false;
         }
 
+        // if its a varchar with a specified size
+        if (expectedType.contains("VARCHAR")) {
+            int len = Integer.parseInt(expectedType.substring(expectedType.indexOf(' ') + 1));
+            if (input.length() > len) {
+                System.out.println(displayInputError("LENGTH"));
+                return false;
+            }
+        }
+
         // remove other words
         int index = expectedType.indexOf(' ');
         if (index != -1)  expectedType = expectedType.substring(0, index);
@@ -229,6 +238,7 @@ public class Utils {
             case "IDENTIFIER" -> "Please input a different value, this already exists in the database";
             case "SIGNED" -> "Please input a positive number";
             case "NO_RECORD" -> "Please input an identifier for an existing record in the database";
+            case "LENGTH" -> "Please input a shorter text";
             default -> "Error";
         };
         return RED + "Invalid input: " + msg + RESET;
