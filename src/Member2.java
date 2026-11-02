@@ -90,9 +90,7 @@ public class Member2 implements Application {
                     "Go back"
             };
             switch (Utils.displayMenu(prompt, options)) {
-                case 0 -> {
-
-                }
+                case 0 -> createTask();
                 // Search
                 case 1 -> {
                     String sql = "SELECT s.taskno, s.taskdate, s.tasktype, s.hours, t.trainno, t.dutytype, t.loadton, s.details " +
@@ -263,6 +261,22 @@ public class Member2 implements Application {
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private void createTask() {
+        String[] labels = {"Task Reference", "Train Reference", "Task Date", "Task Type", "Duration in Hours", "Details"};
+        String[] values = new String[6];
+
+        while (true) {
+            // Create menu
+            List<String> menu = new ArrayList<>();
+            for (int i = 0; i < labels.length; i++) menu.add(String.format("%-20s -> %s", labels[i], values[i] == null ? "None" : values[i]));
+            menu.add("Reset");
+            menu.add("Create Service Task");
+            menu.add("Return");
+
+            int choice = Utils.displayMenu("Modify every field, then choose 'Create Service Task' afterwards:", menu.toArray(new String[0]));
         }
     }
 
