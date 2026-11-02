@@ -201,7 +201,8 @@ public class Utils {
         }
 
         // remove other words
-        input = input.substring(0, input.indexOf(' '));
+        int index = input.indexOf(' ');
+        if (index != -1)  input = input.substring(0, index);
 
         try {
             switch (expectedType) {
