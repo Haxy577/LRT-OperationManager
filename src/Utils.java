@@ -190,7 +190,7 @@ public class Utils {
         }
     }
 
-    public boolean isValidInput(String input, String expectedType) {
+    public static boolean isValidInput(String input, String expectedType) {
         if (input == null || expectedType == null) return false;
         try {
             switch (expectedType.trim().toUpperCase()) {
@@ -204,5 +204,18 @@ public class Utils {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    public static String displayInputError(String type) {
+        if (type == null) return null;
+        String msg = switch (type) {
+            case "INT", "INT UNSIGNED", "TINYINT", "SMALLINT", "INTEGER" -> "Please input an number/integer";
+            case "DECIMAL" -> "Please input a decimal number";
+            case "DATE" -> "Please input a date in this format (YYYY-MM-DD)";
+            case "DATETIME" -> "Please input a date and time in this format (YYYY-MM-DD HH:MM:SS)";
+            case "IDENTIFIER" -> "Please input a different value, this already exists in the database";
+            default -> "Error";
+        };
+        return RED + "Invalid input: " + msg + RESET;
     }
 }
