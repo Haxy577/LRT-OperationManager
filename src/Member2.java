@@ -1,5 +1,5 @@
-import java.util.ArrayList;
-import java.util.List;
+import java.sql.*;
+import java.util.*;
 
 /**
  * Member 2: Train management and supporting Service tasks
@@ -57,9 +57,7 @@ public class Member2 implements Application {
                     "Go back"
             };
             switch (Utils.displayMenu(prompt, options)) {
-                case 0 -> {
-
-                }
+                case 0 -> createTrain();
                 // Search
                 case 1 -> {
                     String sql = "SELECT t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, t.active " +
@@ -132,12 +130,104 @@ public class Member2 implements Application {
                     menu.add(String.format("%-25s -> %s", "Passenger Capacity", passenger[1] == null ? "None" : passenger[1]));
                 } else if (train[2].equals("Service")) {
                     menu.add(String.format("%-25s -> %s", "Principal Duty", service[0] == null ? "None" : service[0]));
-                    menu.add(String.format("%-25s -> %s ton(s)", "Payload Capacity", service[1] == null ? "None" : service[1]));
+                    menu.add(String.format("%-25s -> %s", "Payload Capacity", service[1] == null ? "None" : service[1]));
                 }
             }
+
+            int num = menu.size();
             menu.add("Reset");
             menu.add("Create Record");
             menu.add("Return");
+
+            int choice = Utils.displayMenu("Modify every field, then choose 'Create Record' afterwards:", menu.toArray(new String[0]));
+
+            // reset
+            if (choice == num) {
+                Arrays.fill(train, null);
+                Arrays.fill(passenger, null);
+                Arrays.fill(service, null);
+            }
+            // insert record
+            else if (choice == num + 1) {
+
+            }
+            // return
+            else if (choice == num + 2) {
+                return;
+            }
+            // modify field values
+            else {
+                handleCreateTrainInput(choice, train, passenger, service);
+            }
         }
     }
+
+    private void handleCreateTrainInput(int choice, String[] train, String[] passenger, String[] service) {
+        Scanner sc = new Scanner(System.in);
+
+        switch(choice) {
+            case 0 -> { // Train Reference
+                System.out.print("Enter unique Train Reference: ");
+                String in = sc.nextLine().trim();
+                if (in == null || in.isEmpty()) train[0] = null;
+                else train[0] = in;
+            }
+            case 1 -> { // Train Label
+                System.out.print("Enter Train Label: ");
+                String in = sc.nextLine();
+                train[1] = in.isEmpty() ? null : in;
+            }
+            case 2 -> { // Train Type
+                String[] choices = {"Passenger", "Service", "Reset"};
+                int in = Utils.displayMenu("Choose which type of train it would be:", choices);
+                switch (in) {
+                    case 0 -> { // passenger train
+                        train[2] = choices[0];
+                        Arrays.fill(service, null);
+                    }
+                    case 1 -> { // service train
+                        train[2] = choices[1];
+                        Arrays.fill(passenger, null);
+                    }
+                    default -> train[2] = null;
+                }
+                train[2] = in == choices.length - 1 ? null : choices[in];
+            }
+            case 3 -> { // cars or duty
+                if ("Passenger".equals(train[2])) {
+                    String in = "";
+                    do {
+                        System.out.print("Enter the amount of passenger cars: ");
+                        in = sc.nextLine().trim();
+                        if (in.isEmpty()) break;
+                    } while(!Utils.isValidInput(in, "INT UNSIGNED"));
+                    passenger[0] = in.isEmpty() ? null : in;
+                } else if ("Service".equals(train[2])) {
+                    String[] duties = {"Inspection", "Maintenance", "Recovery", "Reset"};
+                    int in = Utils.displayMenu("Choose the duty of this train: ", duties);
+                    service[0] = in == duties.length - 1 ? null : duties[in];
+                }
+            }
+            case 4 -> { // passenger or service capacity
+                if ("Passenger".equals(train[2])) {
+                    String in = "";
+                    do {
+                        System.out.print("Enter the maximum passenger capacity: ");
+                        in = sc.nextLine().trim();
+                        if (in.isEmpty()) break;
+                    } while(!Utils.isValidInput(in, "INT UNSIGNED"));
+                    passenger[1] = in.isEmpty() ? null : in;
+                } else if ("Service".equals(train[2])) {
+                    String in = "";
+                    do {
+                        System.out.print("Enter the maximum load capacity: ");
+                        in = sc.nextLine().trim();
+                        if (in.isEmpty()) break;
+                    } while(!Utils.isValidInput(in, "DECIMAL UNSIGNED"));
+                    service[1] = in.isEmpty() ? null : in;
+                }
+            }
+        }
+    }
+
 }
