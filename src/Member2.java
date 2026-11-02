@@ -178,7 +178,7 @@ public class Member2 implements Application {
                 if (choice == base) Arrays.fill(values, null); // reset
                 else if (choice == base + 1) saveTaskUpdate(values);
                 else if (choice == base + 2) return; // return
-                else handleCreateTaskInput(choice, values); // modify
+                else handleTaskInput(choice, values); // modify
             }
         } catch (SQLException e) {
             return;
@@ -282,18 +282,12 @@ public class Member2 implements Application {
                 saveTrainRecord(train, passenger, service);
                 return;
             }
-            // return
-            else if (choice == num + 2) {
-                return;
-            }
-            // modify field values
-            else {
-                handleCreateTrainInput(choice, train, passenger, service);
-            }
+            else if (choice == num + 2) return; // return
+            else handleTrainInput(choice, train, passenger, service); // modify field values
         }
     }
 
-    private void handleCreateTrainInput(int choice, String[] train, String[] passenger, String[] service) {
+    private void handleTrainInput(int choice, String[] train, String[] passenger, String[] service) {
         Scanner sc = new Scanner(System.in);
         String in;
 
@@ -414,13 +408,17 @@ public class Member2 implements Application {
             int choice = Utils.displayMenu("Modify every field, then choose 'Create Record' afterwards:", menu.toArray(new String[0]));
 
             if (choice == base) Arrays.fill(values, null); // reset
-            else if (choice == base + 1) saveTaskRecord(values); // save
+            // save
+            else if (choice == base + 1) {
+                saveTaskRecord(values);
+                return;
+            }
             else if (choice == base + 2) return; // return
-            else handleCreateTaskInput(choice, values); // modify
+            else handleTaskInput(choice, values); // modify
         }
     }
 
-    private void handleCreateTaskInput(int choice, String[] values) {
+    private void handleTaskInput(int choice, String[] values) {
         Scanner sc = new Scanner(System.in);
         String in;
         switch (choice) {
