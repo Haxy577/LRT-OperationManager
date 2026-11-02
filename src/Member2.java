@@ -163,28 +163,31 @@ public class Member2 implements Application {
 
     private void handleCreateTrainInput(int choice, String[] train, String[] passenger, String[] service) {
         Scanner sc = new Scanner(System.in);
+        String in;
 
         switch(choice) {
             case 0 -> { // Train Reference
-                String in;
                 do {
                     System.out.print("Enter unique Train Reference: ");
                     in = sc.nextLine().trim();
                     if (Utils.doesRecordExist("train", "trainno", in))
                         System.out.println(Utils.displayInputError("IDENTIFIER"));
-                    else break;
+                    else if (Utils.isValidInput(in, "VARCHAR 12")) break;
                 } while (true);
                 train[0] = in.isEmpty() ? null : in;
             }
             case 1 -> { // Train Label
-                System.out.print("Enter Train Label: ");
-                String in = sc.nextLine().trim();
+                do {
+                    System.out.print("Enter Train Label: ");
+                    in = sc.nextLine().trim();
+                    if (in.isEmpty()) break;
+                } while (!Utils.isValidInput(in, "VARCHAR 80"));
                 train[1] = in.isEmpty() ? null : in;
             }
             case 2 -> { // Train Type
                 String[] choices = {"Passenger", "Service", "Reset"};
-                int in = Utils.displayMenu("Choose which type of train it would be:", choices);
-                switch (in) {
+                int sel = Utils.displayMenu("Choose which type of train it would be:", choices);
+                switch (sel) {
                     case 0 -> { // passenger train
                         train[2] = choices[0];
                         Arrays.fill(service, null);
@@ -195,11 +198,10 @@ public class Member2 implements Application {
                     }
                     default -> train[2] = null;
                 }
-                train[2] = in == choices.length - 1 ? null : choices[in];
+                train[2] = sel == choices.length - 1 ? null : choices[sel];
             }
             case 3 -> { // cars or duty
                 if ("Passenger".equals(train[2])) {
-                    String in = "";
                     do {
                         System.out.print("Enter the amount of passenger cars: ");
                         in = sc.nextLine().trim();
@@ -208,13 +210,12 @@ public class Member2 implements Application {
                     passenger[0] = in.isEmpty() ? null : in;
                 } else if ("Service".equals(train[2])) {
                     String[] duties = {"Inspection", "Maintenance", "Recovery", "Reset"};
-                    int in = Utils.displayMenu("Choose the duty of this train: ", duties);
-                    service[0] = in == duties.length - 1 ? null : duties[in];
+                    int sel = Utils.displayMenu("Choose the duty of this train: ", duties);
+                    service[0] = sel == duties.length - 1 ? null : duties[sel];
                 }
             }
             case 4 -> { // passenger or service capacity
                 if ("Passenger".equals(train[2])) {
-                    String in = "";
                     do {
                         System.out.print("Enter the maximum passenger capacity: ");
                         in = sc.nextLine().trim();
@@ -222,7 +223,6 @@ public class Member2 implements Application {
                     } while(!Utils.isValidInput(in, "INT UNSIGNED"));
                     passenger[1] = in.isEmpty() ? null : in;
                 } else if ("Service".equals(train[2])) {
-                    String in = "";
                     do {
                         System.out.print("Enter the maximum load capacity: ");
                         in = sc.nextLine().trim();
@@ -237,6 +237,7 @@ public class Member2 implements Application {
     private void saveTrainRecord (String[] trainVal, String[] passengerVal, String[] serviceVal) {
         try {
             Connection c = Utils.getSqlConnection();
+            if (c == null) return;
 
             final String insertTrain = "INSERT INTO train (trainno, label, traintyp, active, revno) VALUES (?, ?, ?, 1, 1);";
             PreparedStatement ps = c.prepareStatement(insertTrain);
@@ -297,7 +298,7 @@ public class Member2 implements Application {
                     in = sc.nextLine().trim();
                     if (Utils.doesRecordExist("servicetask", "taskno", in))
                         System.out.println(Utils.displayInputError("IDENTIFIER"));
-                    else break;
+                    else if (Utils.isValidInput(in, "VARCHAR 16")) break;
                 } while (true);
                 values[0] = in.isEmpty() ? null : in;
             }
@@ -308,7 +309,7 @@ public class Member2 implements Application {
                     if (in.isEmpty()) break;
                     else if (!Utils.doesRecordExist("servicetrain", "trainno", in))
                         System.out.println(Utils.displayInputError("NO_RECORD"));
-                    else break;
+                    else if (Utils.isValidInput(in, "VARCHAR 12")) break;
                 } while (true);
                 values[1] = in.isEmpty() ? null : in;
             }
@@ -334,8 +335,11 @@ public class Member2 implements Application {
                 values[4] = in.isEmpty() ? null : in;
             }
             case 5 -> { // details
-                System.out.print("Enter details for task: ");
-                in = sc.nextLine();
+                do {
+                    System.out.print("Enter details for task: ");
+                    in = sc.nextLine();
+                    if (in.isEmpty()) break;
+                } while (!Utils.isValidInput(in, "VARCHAR 255"));
                 values[5] = in.isEmpty() ? null : in;
             }
         }
@@ -347,6 +351,7 @@ public class Member2 implements Application {
 
     private ResultSet retrieveTrainRecord(String trainRef) {
         Connection c = Utils.getSqlConnection();
+        if (c == null) return null;
         try {
             String sql = "SELECT * FROM train WHERE trainno = " + trainRef;
             PreparedStatement ps = c.prepareStatement(sql);
