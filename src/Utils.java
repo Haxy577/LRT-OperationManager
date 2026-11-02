@@ -228,6 +228,7 @@ public class Utils {
             case "DATETIME" -> "Please input a date and time in this format (YYYY-MM-DD HH:MM:SS)";
             case "IDENTIFIER" -> "Please input a different value, this already exists in the database";
             case "SIGNED" -> "Please input a positive number";
+            case "NO_RECORD" -> "Please input an identifier for an existing record in the database";
             default -> "Error";
         };
         return RED + "Invalid input: " + msg + RESET;

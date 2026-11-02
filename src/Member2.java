@@ -178,7 +178,7 @@ public class Member2 implements Application {
             }
             case 1 -> { // Train Label
                 System.out.print("Enter Train Label: ");
-                String in = sc.nextLine();
+                String in = sc.nextLine().trim();
                 train[1] = in.isEmpty() ? null : in;
             }
             case 2 -> { // Train Type
@@ -280,16 +280,65 @@ public class Member2 implements Application {
 
             int choice = Utils.displayMenu("Modify every field, then choose 'Create Service Task' afterwards:", menu.toArray(new String[0]));
 
-            // Reset
-            if (choice == base) Arrays.fill(values, null);
-            else if (choice == base + 1) saveTaskRecord();
-            else if (choice == base + 2) return;
-            else handleCreateTaskInput();
+            if (choice == base) Arrays.fill(values, null); // reset
+            else if (choice == base + 1) saveTaskRecord(); // save
+            else if (choice == base + 2) return; // return
+            else handleCreateTaskInput(choice, values); // modify
         }
     }
 
-    private void handleCreateTaskInput() {
-
+    private void handleCreateTaskInput(int choice, String[] values) {
+        Scanner sc = new Scanner(System.in);
+        String in;
+        switch (choice) {
+            case 0 -> { // task reference
+                do {
+                    System.out.print("Enter unique Task Reference: ");
+                    in = sc.nextLine().trim();
+                    if (Utils.doesRecordExist("servicetask", "taskno", in))
+                        System.out.println(Utils.displayInputError("IDENTIFIER"));
+                    else break;
+                } while (true);
+                values[0] = in.isEmpty() ? null : in;
+            }
+            case 1 -> { // train reference
+                do {
+                    System.out.print("Enter Service Train Reference: ");
+                    in = sc.nextLine().trim();
+                    if (in.isEmpty()) break;
+                    else if (!Utils.doesRecordExist("servicetrain", "trainno", in))
+                        System.out.println(Utils.displayInputError("NO_RECORD"));
+                    else break;
+                } while (true);
+                values[1] = in.isEmpty() ? null : in;
+            }
+            case 2 -> { // task date
+                do {
+                    System.out.print("Enter the date of this task (YYYY-MM-DD): ");
+                    in = sc.nextLine();
+                    if (in.isEmpty()) break;
+                } while (!Utils.isValidInput(in, "DATE"));
+                values[2] = in.isEmpty() ? null : in;
+            }
+            case 3 -> { // task type
+                String[] duties = {"Inspection", "Maintenance", "Recovery", "Reset"};
+                int sel = Utils.displayMenu("Choose the type of this task: ", duties);
+                values[3] = sel == duties.length - 1 ? null : duties[sel];
+            }
+            case 4 -> { // duration
+                do {
+                    System.out.print("Enter the duration of this task in hours: ");
+                    in = sc.nextLine();
+                    if (in.isEmpty()) break;
+                } while (!Utils.isValidInput(in, "DECIMAL UNSIGNED"));
+                values[4] = in.isEmpty() ? null : in;
+            }
+            case 5 -> { // details
+                System.out.print("Enter details for task: ");
+                in = sc.nextLine();
+                values[5] = in.isEmpty() ? null : in;
+            }
+        }
     }
 
     private void saveTaskRecord() {
