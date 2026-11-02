@@ -149,7 +149,8 @@ public class Member2 implements Application {
             }
             // insert record
             else if (choice == num + 1) {
-
+                saveTrainRecord(train, passenger, service);
+                return;
             }
             // return
             else if (choice == num + 2) {
@@ -227,6 +228,36 @@ public class Member2 implements Application {
                     service[1] = in.isEmpty() ? null : in;
                 }
             }
+        }
+    }
+
+    private void saveTrainRecord (String[] trainVal, String[] passengerVal, String[] serviceVal) {
+        try {
+            Connection c = Utils.getSqlConnection();
+
+            final String insertTrain = "INSERT INTO train (trainno, label, traintyp, active, revno) VALUES (?, ?, ?, 1, 1);";
+            PreparedStatement ps = c.prepareStatement(insertTrain);
+            for (int i = 0; i < trainVal.length; i++) ps.setString(i + 1, trainVal[i]);
+            ps.execute();
+
+            if ("Passenger".equalsIgnoreCase(trainVal[2])) {
+                final String insertPassenger = "INSERT INTO passengertrain (trainno, cars, paxcap, revno) VALUES (?, ?, ?, 1);";
+                ps = c.prepareStatement(insertPassenger);
+                ps.setString(1, trainVal[0]);
+                ps.setInt(2, Integer.parseInt(passengerVal[0]));
+                ps.setInt(3, Integer.parseInt(passengerVal[1]));
+                ps.execute();
+            }
+            else if ("Service".equalsIgnoreCase(trainVal[2])) {
+                final String insertService = "INSERT INTO servicetrain (trainno, dutytype, loadton, revno) VALUES (?, ?, ?, 1);";
+                ps = c.prepareStatement(insertService);
+                ps.setString(1, trainVal[0]);
+                ps.setString(2, serviceVal[0]);
+                ps.setDouble(3, Double.parseDouble(serviceVal[1]));
+                ps.execute();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
     }
 
