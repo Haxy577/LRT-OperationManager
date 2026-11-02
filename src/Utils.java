@@ -189,4 +189,20 @@ public class Utils {
             return null;
         }
     }
+
+    public boolean isValidInput(String input, String expectedType) {
+        if (input == null || expectedType == null) return false;
+        try {
+            switch (expectedType.trim().toUpperCase()) {
+                case "INT", "INT UNSIGNED", "TINYINT", "SMALLINT", "INTEGER" -> Integer.parseInt(input);
+                case "DECIMAL" -> Double.parseDouble(input);
+                case "DATE" -> Date.valueOf(input);
+                case "DATETIME" -> Timestamp.valueOf(input);
+                default -> {return true;}
+            }
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }
