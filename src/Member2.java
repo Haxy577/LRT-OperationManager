@@ -104,11 +104,104 @@ public class Member2 implements Application {
                     );
                     Utils.displaySqlResult(Utils.sqlSearch("Trains", sql, filters));
                 }
+                case 2 -> updateTask();
                 case 3 -> deleteTask();
                 default -> {
                     return;
                 }
             }
+        }
+    }
+
+    private ResultSet retrieveTrainRecord(String trainRef) {
+        Connection c = Utils.getSqlConnection();
+        if (c == null) return null;
+        try {
+            String sql = "SELECT * FROM train WHERE trainno = " + trainRef;
+            PreparedStatement ps = c.prepareStatement(sql);
+            ResultSet res = ps.executeQuery();
+
+            // if there is no match just return
+            if (!res.next()) return res;
+
+            String type = res.getString("traintyp");
+            if ("Passenger".equalsIgnoreCase(type))
+                sql = "SELECT * FROM train t JOIN passengertrain p ON t.trainno = p.trainno WHERE t.trainno = " + trainRef;
+            else if ("Service".equalsIgnoreCase(type))
+                sql = "SELECT * FROM train t JOIN servicetrain s ON t.trainno = s.trainno WHERE t.trainno = " + trainRef;
+
+            ps = c.prepareStatement(sql);
+            res = ps.executeQuery();
+            res.next();
+            return res;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void updateTask() {
+        Connection c = Utils.getSqlConnection();
+        if (c == null) return;
+        Scanner sc = new Scanner(System.in);
+        String rec;
+
+        // get the record to be updated
+        do {
+            System.out.print("Input the Task Reference of the record to be edited (blank to return): ");
+            rec = sc.nextLine().trim();
+            if (rec.isEmpty()) return;
+            if (!Utils.isValidInput(rec, "VARCHAR 16")) continue;
+            if (Utils.doesRecordExist("servicetask", "taskno", rec)) break;
+            System.out.println(Utils.displayInputError("NO_RECORD"));
+        } while (true);
+
+        try {
+            // load values
+            ResultSet res = retrieveTask(rec);
+            int n = res.getMetaData().getColumnCount();
+            String[] values = new String[n];
+            String[] labels = {"Task Reference", "Train Reference", "Task Date", "Task Type", "Duration in Hours", "Details"};
+            for (int i = 0; i < n; i++) values[i] = res.getString(i + 1);
+
+            while (true) {
+                // Create menu
+                List<String> menu = new ArrayList<>();
+                for (int i = 0; i < labels.length; i++) menu.add(String.format("%-20s -> %s", labels[i], values[i] == null ? "None" : values[i]));
+
+                int base = menu.size();
+                menu.add("Reset");
+                menu.add("Update Record");
+                menu.add("Return");
+
+                int choice = Utils.displayMenu("Modify fields to be updated, then choose 'Update Record' afterwards:", menu.toArray(new String[0]));
+
+                if (choice == base) Arrays.fill(values, null); // reset
+                else if (choice == base + 1) saveTaskUpdate(values);
+                else if (choice == base + 2) return; // return
+                else handleCreateTaskInput(choice, values); // modify
+            }
+        } catch (SQLException e) {
+            return;
+        }
+    }
+
+    private void saveTaskUpdate(String[] values) {
+
+    }
+
+    private ResultSet retrieveTask(String val) {
+        Connection c = Utils.getSqlConnection();
+        if (c == null) return null;
+        try {
+            String sql = "SELECT * FROM servicetask WHERE taskno = ?;";
+            PreparedStatement ps = c.prepareStatement(sql);
+            ps.setString(1, val);
+            ResultSet res = ps.executeQuery();
+            res.next();
+            return res;
+        } catch (SQLException e) {
+            System.out.println(Utils.displayInputError("NO_RECORD"));
+            return null;
         }
     }
 
@@ -118,7 +211,7 @@ public class Member2 implements Application {
 
         do {
             System.out.print("Input the Train Reference of the record you wish to delete (blank to return): ");
-            String in = sc.nextLine();
+            String in = sc.nextLine().trim();
             if (in.isEmpty()) return;
             if (!Utils.isValidInput(in, "VARCHAR 16")) continue;
 
@@ -141,7 +234,7 @@ public class Member2 implements Application {
         Scanner sc = new Scanner(System.in);
         do {
             System.out.print("Input the Task Reference of the record you wish to delete (blank to return): ");
-            String in = sc.nextLine();
+            String in = sc.nextLine().trim();
             if (in.isEmpty()) return;
             if (Utils.isValidInput(in, "VARCHAR 16"))
                 if (Utils.safeDeleteRecord("servicetask", null, "taskno", in))
@@ -318,7 +411,7 @@ public class Member2 implements Application {
             menu.add("Create Record");
             menu.add("Return");
 
-            int choice = Utils.displayMenu("Modify every field, then choose 'Create Service Task' afterwards:", menu.toArray(new String[0]));
+            int choice = Utils.displayMenu("Modify every field, then choose 'Create Record' afterwards:", menu.toArray(new String[0]));
 
             if (choice == base) Arrays.fill(values, null); // reset
             else if (choice == base + 1) saveTaskRecord(values); // save
@@ -399,30 +492,6 @@ public class Member2 implements Application {
             ps.setDouble(5, Double.parseDouble(values[4]));
             ps.setString(6, values[5]);
             ps.execute();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private ResultSet retrieveTrainRecord(String trainRef) {
-        Connection c = Utils.getSqlConnection();
-        if (c == null) return null;
-        try {
-            String sql = "SELECT * FROM train WHERE trainno = " + trainRef;
-            PreparedStatement ps = c.prepareStatement(sql);
-            ResultSet res = ps.executeQuery();
-
-            // if there is no match just return
-            if (!res.next()) return res;
-
-            String type = res.getString("traintyp");
-            if ("Passenger".equalsIgnoreCase(type))
-                sql = "SELECT * FROM train t JOIN passengertrain p ON t.trainno = p.trainno WHERE t.trainno = " + trainRef;
-            else if ("Service".equalsIgnoreCase(type))
-                sql = "SELECT * FROM train t JOIN servicetrain s ON t.trainno = s.trainno WHERE t.trainno = " + trainRef;
-
-            ps = c.prepareStatement(sql);
-            return ps.executeQuery();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
