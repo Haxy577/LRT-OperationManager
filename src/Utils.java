@@ -235,11 +235,10 @@ public class Utils {
 
     public static boolean doesRecordExist(String table, String field, String value) {
         Connection c = getSqlConnection();
+        String sql = "SELECT 1 FROM " + table + " WHERE " + field + " = ?;";
         try {
-            PreparedStatement ps = c.prepareStatement("SELECT * FROM ? WHERE ? = ?;");
-            ps.setString(1, table);
-            ps.setString(2, field);
-            ps.setString(3, value);
+            PreparedStatement ps = c.prepareStatement(sql);
+            ps.setString(1, value);
             return ps.executeQuery().next();
         } catch (SQLException e) {
             return false;
