@@ -140,8 +140,6 @@ public class Member2 implements Application {
     }
 
     private void updateTask() {
-        Connection c = Utils.getSqlConnection();
-        if (c == null) return;
         Scanner sc = new Scanner(System.in);
         String rec;
 
@@ -165,24 +163,16 @@ public class Member2 implements Application {
 
             while (true) {
                 // Create menu
-                List<String> menu = new ArrayList<>();
-                for (int i = 0; i < labels.length; i++) menu.add(String.format("%-20s -> %s", labels[i], values[i] == null ? "None" : values[i]));
+                List<String> menu = Utils.createModifiableMenu(labels, values);
+                int choice = Utils.displayMenu("Modify fields to be updated, then choose 'Confirm' afterwards:", menu.toArray(new String[0]));
+                int num = menu.size() - 1;
 
-                int base = menu.size();
-                menu.add("Reset");
-                menu.add("Update Record");
-                menu.add("Return");
-
-                int choice = Utils.displayMenu("Modify fields to be updated, then choose 'Update Record' afterwards:", menu.toArray(new String[0]));
-
-                if (choice == base) Arrays.fill(values, null); // reset
-                else if (choice == base + 1) saveTaskUpdate(values);
-                else if (choice == base + 2) return; // return
+                if (choice == num) return; // return
+                else if (choice == num - 1) saveTaskUpdate(values); // confirm
+                else if (choice == num - 2) Arrays.fill(values, null); // reset
                 else handleTaskInput(choice, values); // modify
             }
-        } catch (SQLException e) {
-            return;
-        }
+        } catch (SQLException _) {}
     }
 
     private void saveTaskUpdate(String[] values) {
@@ -243,51 +233,33 @@ public class Member2 implements Application {
     }
 
     private void createTrain() {
-        // Create arrays to store values of trains
-        String[] train = new String[3];
-        String[] passenger = new String[2];
-        String[] service = new String[2];
+        String[] values = new String[7];
+        String[] labels = {"Train Reference", "Train Label", "Train Type", "Number of Cars", "Passenger Capacity", "Principal Duty", "Payload Capacity"};
 
         while (true) {
             // create menu
-            List<String> menu = new ArrayList<>();
-            menu.add(String.format("%-25s -> %s", "Train Reference", train[0] == null ? "None" : train[0]));
-            menu.add(String.format("%-25s -> %s", "Train Label", train[1] == null ? "None" : train[1]));
-            menu.add(String.format("%-25s -> %s", "Train Type", train[2] == null ? "None" : train[2]));
-            if (train[2] != null) {
-                if (train[2].equals("Passenger")) {
-                    menu.add(String.format("%-25s -> %s", "Number of Cars", passenger[0] == null ? "None" : passenger[0]));
-                    menu.add(String.format("%-25s -> %s", "Passenger Capacity", passenger[1] == null ? "None" : passenger[1]));
-                } else if (train[2].equals("Service")) {
-                    menu.add(String.format("%-25s -> %s", "Principal Duty", service[0] == null ? "None" : service[0]));
-                    menu.add(String.format("%-25s -> %s", "Payload Capacity", service[1] == null ? "None" : service[1]));
-                }
+            List<String> menu = Utils.createModifiableMenu(labels, values);
+            if (!"Passenger".equalsIgnoreCase(values[2])) {
+                menu.remove(3);
+                menu.remove(3);
+            }
+            if (!"Service".equalsIgnoreCase(values[2])) {
+                int index = menu.size() - 5;
+                menu.remove(index);
+                menu.remove(index);
             }
 
-            int num = menu.size();
-            menu.add("Reset");
-            menu.add("Create Record");
-            menu.add("Return");
+            int choice = Utils.displayMenu("Modify every field, then choose 'Confirm' afterwards:", menu.toArray(new String[0]));
+            int num = menu.size() - 1;
 
-            int choice = Utils.displayMenu("Modify every field, then choose 'Create Record' afterwards:", menu.toArray(new String[0]));
-
-            // reset
-            if (choice == num) {
-                Arrays.fill(train, null);
-                Arrays.fill(passenger, null);
-                Arrays.fill(service, null);
-            }
-            // insert record
-            else if (choice == num + 1) {
-                saveTrainRecord(train, passenger, service);
-                return;
-            }
-            else if (choice == num + 2) return; // return
-            else handleTrainInput(choice, train, passenger, service); // modify field values
+            if (choice == num) return; // return
+            else if (choice == num - 1) saveTrainRecord(values); // confirm
+            else if (choice == num - 2) Arrays.fill(values, null); // reset
+            else handleTrainInput(choice, values); // modify
         }
     }
 
-    private void handleTrainInput(int choice, String[] train, String[] passenger, String[] service) {
+    private void handleTrainInput(int choice, String[] values) {
         Scanner sc = new Scanner(System.in);
         String in;
 
@@ -300,7 +272,7 @@ public class Member2 implements Application {
                         System.out.println(Utils.displayInputError("IDENTIFIER"));
                     else if (Utils.isValidInput(in, "VARCHAR 12")) break;
                 } while (true);
-                train[0] = in.isEmpty() ? null : in;
+                values[0] = in.isEmpty() ? null : in;
             }
             case 1 -> { // Train Label
                 do {
@@ -308,82 +280,84 @@ public class Member2 implements Application {
                     in = sc.nextLine().trim();
                     if (in.isEmpty()) break;
                 } while (!Utils.isValidInput(in, "VARCHAR 80"));
-                train[1] = in.isEmpty() ? null : in;
+                values[1] = in.isEmpty() ? null : in;
             }
             case 2 -> { // Train Type
                 String[] choices = {"Passenger", "Service", "Reset"};
                 int sel = Utils.displayMenu("Choose which type of train it would be:", choices);
                 switch (sel) {
                     case 0 -> { // passenger train
-                        train[2] = choices[0];
-                        Arrays.fill(service, null);
+                        values[2] = choices[0];
+                        values[5] = null;
+                        values[6] = null;
                     }
                     case 1 -> { // service train
-                        train[2] = choices[1];
-                        Arrays.fill(passenger, null);
+                        values[2] = choices[1];
+                        values[3] = null;
+                        values[4] = null;
                     }
-                    default -> train[2] = null;
+                    default -> values[2] = null;
                 }
-                train[2] = sel == choices.length - 1 ? null : choices[sel];
+                values[2] = sel == choices.length - 1 ? null : choices[sel];
             }
             case 3 -> { // cars or duty
-                if ("Passenger".equals(train[2])) {
+                if ("Passenger".equals(values[2])) {
                     do {
                         System.out.print("Enter the amount of passenger cars: ");
                         in = sc.nextLine().trim();
                         if (in.isEmpty()) break;
                     } while(!Utils.isValidInput(in, "INT UNSIGNED"));
-                    passenger[0] = in.isEmpty() ? null : in;
-                } else if ("Service".equals(train[2])) {
+                    values[3] = in.isEmpty() ? null : in;
+                } else if ("Service".equals(values[2])) {
                     String[] duties = {"Inspection", "Maintenance", "Recovery", "Reset"};
                     int sel = Utils.displayMenu("Choose the duty of this train: ", duties);
-                    service[0] = sel == duties.length - 1 ? null : duties[sel];
+                    values[5] = sel == duties.length - 1 ? null : duties[sel];
                 }
             }
             case 4 -> { // passenger or service capacity
-                if ("Passenger".equals(train[2])) {
+                if ("Passenger".equals(values[2])) {
                     do {
                         System.out.print("Enter the maximum passenger capacity: ");
                         in = sc.nextLine().trim();
                         if (in.isEmpty()) break;
                     } while(!Utils.isValidInput(in, "INT UNSIGNED"));
-                    passenger[1] = in.isEmpty() ? null : in;
-                } else if ("Service".equals(train[2])) {
+                    values[4] = in.isEmpty() ? null : in;
+                } else if ("Service".equals(values[2])) {
                     do {
                         System.out.print("Enter the maximum load capacity: ");
                         in = sc.nextLine().trim();
                         if (in.isEmpty()) break;
                     } while(!Utils.isValidInput(in, "DECIMAL UNSIGNED"));
-                    service[1] = in.isEmpty() ? null : in;
+                    values[6] = in.isEmpty() ? null : in;
                 }
             }
         }
     }
 
-    private void saveTrainRecord (String[] trainVal, String[] passengerVal, String[] serviceVal) {
+    private void saveTrainRecord (String[] values) {
         try {
             Connection c = Utils.getSqlConnection();
             if (c == null) return;
 
             final String insertTrain = "INSERT INTO train (trainno, label, traintyp, active, revno) VALUES (?, ?, ?, 1, 1);";
             PreparedStatement ps = c.prepareStatement(insertTrain);
-            for (int i = 0; i < trainVal.length; i++) ps.setString(i + 1, trainVal[i]);
+            for (int i = 0; i < 3; i++) ps.setString(i + 1, values[i]);
             ps.execute();
 
-            if ("Passenger".equalsIgnoreCase(trainVal[2])) {
+            if ("Passenger".equalsIgnoreCase(values[2])) {
                 final String insertPassenger = "INSERT INTO passengertrain (trainno, cars, paxcap, revno) VALUES (?, ?, ?, 1);";
                 ps = c.prepareStatement(insertPassenger);
-                ps.setString(1, trainVal[0]);
-                ps.setInt(2, Integer.parseInt(passengerVal[0]));
-                ps.setInt(3, Integer.parseInt(passengerVal[1]));
+                ps.setString(1, values[0]);
+                ps.setInt(2, Integer.parseInt(values[3]));
+                ps.setInt(3, Integer.parseInt(values[4]));
                 ps.execute();
             }
-            else if ("Service".equalsIgnoreCase(trainVal[2])) {
+            else if ("Service".equalsIgnoreCase(values[2])) {
                 final String insertService = "INSERT INTO servicetrain (trainno, dutytype, loadton, revno) VALUES (?, ?, ?, 1);";
                 ps = c.prepareStatement(insertService);
-                ps.setString(1, trainVal[0]);
-                ps.setString(2, serviceVal[0]);
-                ps.setDouble(3, Double.parseDouble(serviceVal[1]));
+                ps.setString(1, values[0]);
+                ps.setString(2, values[5]);
+                ps.setDouble(3, Double.parseDouble(values[6]));
                 ps.execute();
             }
         } catch (SQLException e) {
@@ -397,23 +371,13 @@ public class Member2 implements Application {
 
         while (true) {
             // Create menu
-            List<String> menu = new ArrayList<>();
-            for (int i = 0; i < labels.length; i++) menu.add(String.format("%-20s -> %s", labels[i], values[i] == null ? "None" : values[i]));
+            List<String> menu = Utils.createModifiableMenu(labels, values);
+            int choice = Utils.displayMenu("Modify every field, then choose 'Confirm' afterwards:", menu.toArray(new String[0]));
+            int num = menu.size() - 1;
 
-            int base = menu.size();
-            menu.add("Reset");
-            menu.add("Create Record");
-            menu.add("Return");
-
-            int choice = Utils.displayMenu("Modify every field, then choose 'Create Record' afterwards:", menu.toArray(new String[0]));
-
-            if (choice == base) Arrays.fill(values, null); // reset
-            // save
-            else if (choice == base + 1) {
-                saveTaskRecord(values);
-                return;
-            }
-            else if (choice == base + 2) return; // return
+            if (choice == num) return; // return
+            else if (choice == num - 1) saveTaskRecord(values); // confirm
+            else if (choice == num - 2) Arrays.fill(values, null); // reset
             else handleTaskInput(choice, values); // modify
         }
     }
