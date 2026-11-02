@@ -189,4 +189,70 @@ public class Utils {
             return null;
         }
     }
+
+    public static boolean isValidInput(String input, String expectedType) {
+        if (input == null || expectedType == null) return false;
+        expectedType = expectedType.trim().toUpperCase();
+
+        // Check if the number has to be unsigned
+        if (expectedType.contains("UNSIGNED") && input.contains("-")) {
+            System.out.println(displayInputError("SIGNED"));
+            return false;
+        }
+
+        // if its a varchar with a specified size
+        if (expectedType.contains("VARCHAR")) {
+            int len = Integer.parseInt(expectedType.substring(expectedType.indexOf(' ') + 1));
+            if (input.length() > len) {
+                System.out.println(displayInputError("LENGTH"));
+                return false;
+            }
+        }
+
+        // remove other words
+        int index = expectedType.indexOf(' ');
+        if (index != -1)  expectedType = expectedType.substring(0, index);
+
+        try {
+            switch (expectedType) {
+                case "INT", "TINYINT", "SMALLINT", "INTEGER" -> Integer.parseInt(input);
+                case "DECIMAL" -> Double.parseDouble(input);
+                case "DATE" -> Date.valueOf(input);
+                case "DATETIME" -> Timestamp.valueOf(input);
+                default -> {return true;}
+            }
+            return true;
+        } catch (Exception e) {
+            System.out.println(displayInputError(expectedType));
+            return false;
+        }
+    }
+
+    public static String displayInputError(String type) {
+        if (type == null) return null;
+        String msg = switch (type) {
+            case "INT", "INT UNSIGNED", "TINYINT", "SMALLINT", "INTEGER" -> "Please input an number/integer";
+            case "DECIMAL" -> "Please input a decimal number";
+            case "DATE" -> "Please input a date in this format (YYYY-MM-DD)";
+            case "DATETIME" -> "Please input a date and time in this format (YYYY-MM-DD HH:MM:SS)";
+            case "IDENTIFIER" -> "Please input a different value, this already exists in the database";
+            case "SIGNED" -> "Please input a positive number";
+            case "NO_RECORD" -> "Please input an identifier for an existing record in the database";
+            case "LENGTH" -> "Please input a shorter text";
+            default -> "Error";
+        };
+        return RED + "Invalid input: " + msg + RESET;
+    }
+
+    public static boolean doesRecordExist(String table, String field, String value) {
+        Connection c = getSqlConnection();
+        String sql = "SELECT 1 FROM " + table + " WHERE " + field + " = ?;";
+        try {
+            PreparedStatement ps = c.prepareStatement(sql);
+            ps.setString(1, value);
+            return ps.executeQuery().next();
+        } catch (SQLException e) {
+            return false;
+        }
+    }
 }
