@@ -296,4 +296,16 @@ public class Utils {
         }
         return true;
     }
+
+    public static List<String> createModifiableMenu(String[] labels, String[] values) {
+        if (labels == null || values == null || labels.length > values.length) return new ArrayList<>();
+        List<String> menu = new ArrayList<>();
+        for (int i = 0; i < labels.length; i++) {
+            menu.add(String.format("%-25s -> %s", labels[i], values[i]));
+        }
+        menu.add("Reset");
+        menu.add("Confirm");
+        menu.add("Return");
+        return menu;
+    }
 }
