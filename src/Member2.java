@@ -272,12 +272,28 @@ public class Member2 implements Application {
             // Create menu
             List<String> menu = new ArrayList<>();
             for (int i = 0; i < labels.length; i++) menu.add(String.format("%-20s -> %s", labels[i], values[i] == null ? "None" : values[i]));
+
+            int base = menu.size();
             menu.add("Reset");
-            menu.add("Create Service Task");
+            menu.add("Create Record");
             menu.add("Return");
 
             int choice = Utils.displayMenu("Modify every field, then choose 'Create Service Task' afterwards:", menu.toArray(new String[0]));
+
+            // Reset
+            if (choice == base) Arrays.fill(values, null);
+            else if (choice == base + 1) saveTaskRecord();
+            else if (choice == base + 2) return;
+            else handleCreateTaskInput();
         }
+    }
+
+    private void handleCreateTaskInput() {
+
+    }
+
+    private void saveTaskRecord() {
+
     }
 
     private ResultSet retrieveTrainRecord(String trainRef) {
