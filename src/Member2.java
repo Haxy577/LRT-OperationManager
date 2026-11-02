@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -113,4 +114,30 @@ public class Member2 implements Application {
         }
     }
 
+    private void createTrain() {
+        // Create arrays to store values of trains
+        String[] train = new String[3];
+        String[] passenger = new String[2];
+        String[] service = new String[2];
+
+        while (true) {
+            // create menu
+            List<String> menu = new ArrayList<>();
+            menu.add(String.format("%-25s -> %s", "Train Reference", train[0] == null ? "None" : train[0]));
+            menu.add(String.format("%-25s -> %s", "Train Label", train[1] == null ? "None" : train[1]));
+            menu.add(String.format("%-25s -> %s", "Train Type", train[2] == null ? "None" : train[2]));
+            if (train[2] != null) {
+                if (train[2].equals("Passenger")) {
+                    menu.add(String.format("%-25s -> %s", "Number of Cars", passenger[0] == null ? "None" : passenger[0]));
+                    menu.add(String.format("%-25s -> %s", "Passenger Capacity", passenger[1] == null ? "None" : passenger[1]));
+                } else if (train[2].equals("Service")) {
+                    menu.add(String.format("%-25s -> %s", "Principal Duty", service[0] == null ? "None" : service[0]));
+                    menu.add(String.format("%-25s -> %s ton(s)", "Payload Capacity", service[1] == null ? "None" : service[1]));
+                }
+            }
+            menu.add("Reset");
+            menu.add("Create Record");
+            menu.add("Return");
+        }
+    }
 }
