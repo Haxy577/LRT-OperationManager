@@ -261,4 +261,26 @@ public class Member2 implements Application {
         }
     }
 
+    private ResultSet retrieveTrainRecord(String trainRef) {
+        Connection c = Utils.getSqlConnection();
+        try {
+            String sql = "SELECT * FROM train WHERE trainno = " + trainRef;
+            PreparedStatement ps = c.prepareStatement(sql);
+            ResultSet res = ps.executeQuery();
+
+            // if there is no match just return
+            if (!res.next()) return res;
+
+            String type = res.getString("traintyp");
+            if ("Passenger".equalsIgnoreCase(type))
+                sql = "SELECT * FROM train t JOIN passengertrain p ON t.trainno = p.trainno WHERE t.trainno = " + trainRef;
+            else if ("Service".equalsIgnoreCase(type))
+                sql = "SELECT * FROM train t JOIN servicetrain s ON t.trainno = s.trainno WHERE t.trainno = " + trainRef;
+
+            ps = c.prepareStatement(sql);
+            return ps.executeQuery();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }
