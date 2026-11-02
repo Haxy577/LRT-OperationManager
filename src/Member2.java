@@ -168,10 +168,15 @@ public class Member2 implements Application {
 
         switch(choice) {
             case 0 -> { // Train Reference
-                System.out.print("Enter unique Train Reference: ");
-                String in = sc.nextLine().trim();
-                if (in == null || in.isEmpty()) train[0] = null;
-                else train[0] = in;
+                String in;
+                do {
+                    System.out.print("Enter unique Train Reference: ");
+                    in = sc.nextLine().trim();
+                    if (Utils.doesRecordExist("train", "trainno", in))
+                        System.out.println(Utils.displayInputError("IDENTIFIER"));
+                    else break;
+                } while (true);
+                train[0] = in.isEmpty() ? null : in;
             }
             case 1 -> { // Train Label
                 System.out.print("Enter Train Label: ");
