@@ -32,6 +32,39 @@ public class Utils {
     }
 
     /**
+     * Displays a menu display with the prompt and the choices the user can pick. Would also handle obtaining a valid input
+     * from the user. It would return the corresponding value of the chosen option.
+     *
+     * @param prompt an instruction telling the user what to do or what the menu is about
+     * @param options array of strings representing the choices to be displayed
+     * @param values the value associated with each option. Can be null, would use the options as the values instead
+     * @return the corresponding value of the chosen option
+     */
+    public static String displayMenu(String prompt, String[] options, String[] values) {
+        if (options == null || options.length < 1) System.err.println("The provided options cannot be null nor empty");
+        if (values != null && options.length != values.length) System.err.println("The options and values must match each other");
+        String[] res = values == null ? options : values;
+
+        System.out.println(prompt);
+        int len = options.length;
+        for (int i = 0; i < len; i++) System.out.printf("  [%d] %s\n", i + 1, options[i]);
+
+        Scanner sc = new Scanner(System.in);
+        while (true) {
+            System.out.print("Please enter your choice: ");
+            String input = sc.nextLine();
+            if (input.matches("^[0-9]+$")) {
+                int choice = Integer.parseInt(input);
+                if (choice >= 1 && choice <= len) {
+                    return res[choice - 1];
+                }
+            }
+            // if input is invalid then print error message
+            System.out.println(RED + "Please enter an integer between 1 to " + len + "!" + RESET);
+        }
+    }
+
+    /**
      * Displays the results of an SQL statement in the terminal in a formatted manner.
      * It would first display the labels in the result, then every row in the result.
      * It would print nothing if the specified result is null.
@@ -75,37 +108,6 @@ public class Utils {
             System.out.println(divider);
         } catch (Exception e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * Displays a menu display with the prompt and the choices the user can pick. Would also handle obtaining a valid input
-     * from the user. It would return the corresponding index of the chosen option.
-     *
-     * @param prompt a instruction telling the user what to do or what is the menu about
-     * @param options an array of strings representing every choice the user can pick from
-     * @return the corresponding index in the choices array representing the choice that the user made
-     */
-    public static int displayMenu(String prompt, String[] options) {
-        if (options == null || options.length < 1) System.err.println("The provided options cannot be null nor empty");
-
-        System.out.println(prompt);
-        int len = options.length;
-        for (int i = 0; i < len; i++) System.out.printf("  [%d] %s\n", i + 1, options[i]);
-
-        Scanner sc = new Scanner(System.in);
-        while (true) {
-            System.out.print("Please enter your choice: ");
-            String input = sc.nextLine();
-            if (input.matches("^[0-9]+$")) {
-                int choice = Integer.parseInt(input);
-                if (choice >= 1 && choice <= len) {
-                    return choice - 1;
-                }
-            }
-
-            // if input is invalid then print error message
-            System.out.println(RED + "Please enter an integer between 1 to " + len + "!" + RESET);
         }
     }
 
