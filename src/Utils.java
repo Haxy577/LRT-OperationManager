@@ -1,7 +1,6 @@
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
+import java.sql.Date;
+import java.util.*;
 
 /**
  * A collection of static helper methods
@@ -331,5 +330,14 @@ public class Utils {
         menu.add("Confirm");
         menu.add("Return");
         return menu;
+    }
+
+    public static PreparedStatement prepareStatement(Connection c, String sql, Object[] values, SQLType[] types) throws SQLException {
+        PreparedStatement ps = c.prepareStatement(sql);
+        if (values == null || types == null || values.length != types.length) return ps;
+        for (int i = 1; i <= values.length; i++) {
+            ps.setObject(i, values[i - 1], types[i - 1]);
+        }
+        return ps;
     }
 }

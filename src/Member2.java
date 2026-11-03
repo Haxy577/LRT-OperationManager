@@ -177,7 +177,29 @@ public class Member2 implements Application {
     }
 
     private void saveTrainUpdate(String[] values) {
+        try {
+            Connection c = Utils.getSqlConnection();
+            String sql = "UPDATE train SET label  = ?, traintyp = ?, active = ?, revno = revno + 1 WHERE trainno = ? AND revno = ?;";
+            Object[] insert = {values[1], values[2], Integer.parseInt(values[7]), values[0], Integer.parseInt(values[8])};
+            SQLType[] types = {JDBCType.VARCHAR, JDBCType.VARCHAR, JDBCType.TINYINT, JDBCType.VARCHAR, JDBCType.INTEGER};
+            PreparedStatement ps = Utils.prepareStatement(c, sql, insert, types);
 
+            // update
+            int rows = ps.executeUpdate();
+            if (rows == 0) {
+                Utils.displayDatabaseError("REVISION", null);
+                return;
+            }
+
+            if ("Passenger".equalsIgnoreCase(values[2])) {
+                sql = "UPDATE passengertrain SET cars = ?, paxcap = ?, revno = revno + 1 WHERE trainno = ? AND revno = ?;";
+                ps = c.prepareStatement(sql);
+
+                // update passenger db
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private ResultSet retrieveTrainRecord(String trainRef) {
@@ -242,17 +264,9 @@ public class Member2 implements Application {
         try {
             Connection c = Utils.getSqlConnection();
             String sql = "UPDATE servicetask SET taskdate = ?, tasktype = ?, hours = ?, details = ?, revno = revno + 1 WHERE taskno = ? AND revno = ?;";
-            PreparedStatement ps = c.prepareStatement(sql);
-
-            // update values
-            ps.setDate(1, Date.valueOf(values[2]));
-            ps.setString(2, values[3]);
-            ps.setDouble(3, Double.parseDouble(values[4]));
-            ps.setString(4, values[5]);
-
-            // where conditions
-            ps.setString(5, values[0]);
-            ps.setInt(6, Integer.parseInt(values[6]));
+            Object[] insert = {Date.valueOf(values[2]), values[3], Double.parseDouble(values[4]), values[5], values[0], Integer.parseInt(values[6])};
+            JDBCType[] types = {JDBCType.DATE, JDBCType.VARCHAR, JDBCType.DECIMAL, JDBCType.VARCHAR, JDBCType.VARCHAR, JDBCType.INTEGER};
+            PreparedStatement ps = Utils.prepareStatement(c, sql, insert, types);
 
             int rows = ps.executeUpdate();
             if (rows == 0) Utils.displayDatabaseError("REVISION", null);
