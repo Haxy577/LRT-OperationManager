@@ -125,7 +125,7 @@ public class Member2 implements Application {
             if (rec.isEmpty()) return;
             if (!Utils.isValidInput(rec, "VARCHAR(12)")) continue;
             if (Utils.doesRecordExist("train", "trainno", rec)) break;
-            System.out.println(Utils.displayInputError("NO_RECORD"));
+            Utils.displayInputError("NO_RECORD");
         } while (true);
 
         try {
@@ -193,7 +193,7 @@ public class Member2 implements Application {
             res.next();
             return res;
         } catch (SQLException e) {
-            System.out.println(Utils.displayInputError("NO_RECORD"));
+            Utils.displayInputError("NO_RECORD");
             return null;
         }
     }
@@ -209,7 +209,7 @@ public class Member2 implements Application {
             if (rec.isEmpty()) return;
             if (!Utils.isValidInput(rec, "VARCHAR(16)")) continue;
             if (Utils.doesRecordExist("servicetask", "taskno", rec)) break;
-            System.out.println(Utils.displayInputError("NO_RECORD"));
+            Utils.displayInputError("NO_RECORD");
         } while (true);
 
         try {
@@ -239,7 +239,30 @@ public class Member2 implements Application {
     }
 
     private void saveTaskUpdate(String[] values) {
+        try {
+            Connection c = Utils.getSqlConnection();
+            String sql = "UPDATE servicetask SET taskdate = ?, tasktype = ?, hours = ?, details = ?, revno = revno + 1 WHERE taskno = ? AND revno = ?;";
+            PreparedStatement ps = c.prepareStatement(sql);
 
+            // update values
+            ps.setDate(1, Date.valueOf(values[2]));
+            ps.setString(2, values[3]);
+            ps.setDouble(3, Double.parseDouble(values[4]));
+            ps.setString(4, values[5]);
+
+            // where conditions
+            ps.setString(5, values[0]);
+            ps.setInt(6, Integer.parseInt(values[6]));
+
+            int rows = ps.executeUpdate();
+            if (rows == 0) Utils.displayDatabaseError("REVISION", null);
+
+            // close resources
+            c.close();
+            ps.close();
+        } catch (SQLException e) {
+            Utils.displayDatabaseError(null, e);
+        }
     }
 
     private ResultSet retrieveTask(String val) {
@@ -253,7 +276,7 @@ public class Member2 implements Application {
             res.next();
             return res;
         } catch (SQLException e) {
-            System.out.println(Utils.displayInputError("NO_RECORD"));
+            Utils.displayInputError("NO_RECORD");
             return null;
         }
     }
@@ -336,7 +359,7 @@ public class Member2 implements Application {
                     System.out.print("Enter unique Train Reference: ");
                     in = sc.nextLine().trim();
                     if (Utils.doesRecordExist("train", "trainno", in))
-                        System.out.println(Utils.displayInputError("IDENTIFIER"));
+                        Utils.displayInputError("IDENTIFIER");
                     else if (Utils.isValidInput(in, "VARCHAR(12)")) break;
                 } while (true);
                 values[0] = in.isEmpty() ? null : in;
@@ -353,7 +376,7 @@ public class Member2 implements Application {
                 // only able to change if identifier has no reference with other tables
                 if (values[0] != null) {
                     if (Utils.doesRecordExist("traincall", "trainno", values[0]) || Utils.doesRecordExist("servicetask", "trainno", values[0])) {
-                        System.out.println(Utils.displayInputError("REFERENCE"));
+                        Utils.displayInputError("REFERENCE");
                         return;
                     }
                 }
@@ -474,7 +497,7 @@ public class Member2 implements Application {
                     System.out.print("Enter unique Task Reference: ");
                     in = sc.nextLine().trim();
                     if (Utils.doesRecordExist("servicetask", "taskno", in))
-                        System.out.println(Utils.displayInputError("IDENTIFIER"));
+                        Utils.displayInputError("IDENTIFIER");
                     else if (Utils.isValidInput(in, "VARCHAR(16)")) break;
                 } while (true);
                 values[0] = in.isEmpty() ? null : in;
@@ -485,7 +508,7 @@ public class Member2 implements Application {
                     in = sc.nextLine().trim();
                     if (in.isEmpty()) break;
                     else if (!Utils.doesRecordExist("servicetrain", "trainno", in))
-                        System.out.println(Utils.displayInputError("NO_RECORD"));
+                        Utils.displayInputError("NO_RECORD");
                     else if (Utils.isValidInput(in, "VARCHAR(12)")) break;
                 } while (true);
                 values[1] = in.isEmpty() ? null : in;

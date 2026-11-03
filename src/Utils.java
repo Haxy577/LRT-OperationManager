@@ -260,6 +260,7 @@ public class Utils {
     public static void displayDatabaseError(String type, Exception e) {
         if (e != null) {
             System.out.println(RED + "Database Error: " + e.toString() + RESET);
+            return;
         }
         String msg = switch (type) {
             case "REVISION" -> "Please try again, the record you are trying to update is outdated";
