@@ -123,7 +123,7 @@ public class Member2 implements Application {
             System.out.print("Input the Train Reference of the record to be edited (blank to return): ");
             rec = sc.nextLine().trim();
             if (rec.isEmpty()) return;
-            if (!Utils.isValidInput(rec, "VARCHAR 12")) continue;
+            if (!Utils.isValidInput(rec, "VARCHAR(12)")) continue;
             if (Utils.doesRecordExist("train", "trainno", rec)) break;
             System.out.println(Utils.displayInputError("NO_RECORD"));
         } while (true);
@@ -138,7 +138,7 @@ public class Member2 implements Application {
             String[] orig = Arrays.copyOf(values, n);
 
             String[] labels = {
-                    "Train Reference", "Train Label", "Train Type",
+                    "Train Label", "Train Type",
                     "Number of Cars", "Passenger Capacity",
                     "Principal Duty", "Payload Capacity",
                     "Train Activation"
@@ -146,11 +146,11 @@ public class Member2 implements Application {
 
             while (true) {
                 // create menu
-                List<String> menu = Utils.createModifiableMenu(labels, values);
-                int index = 5;
+                List<String> menu = Utils.createModifiableMenu(labels, Arrays.copyOfRange(values, 1, n));
+                int index = 4;
                 if (!"Passenger".equalsIgnoreCase(values[2])) {
-                    menu.remove(3);
-                    menu.remove(3);
+                    menu.remove(2);
+                    menu.remove(2);
                     index -= 2;
                 }
                 if (!"Service".equalsIgnoreCase(values[2])) {
@@ -162,10 +162,14 @@ public class Member2 implements Application {
                 int num = menu.size() - 1;
 
                 if (choice == num) return; // return
-                else if (choice == num - 1) saveTrainUpdate(values); // confirm
+                else if (choice == num - 1) { // confirm
+                    saveTrainUpdate(values);
+                    return;
+                }
                 else if (choice == num - 2) values = Arrays.copyOf(orig, n); // reset
                 else { // modify
-                    if (num == 6 && choice == 3) handleTrainInput(5, values);
+                    choice += 1;
+                    if (num == 5 && choice == 3) handleTrainInput(5, values);
                     else handleTrainInput(choice, values);
                 }
             }
@@ -203,7 +207,7 @@ public class Member2 implements Application {
             System.out.print("Input the Task Reference of the record to be edited (blank to return): ");
             rec = sc.nextLine().trim();
             if (rec.isEmpty()) return;
-            if (!Utils.isValidInput(rec, "VARCHAR 16")) continue;
+            if (!Utils.isValidInput(rec, "VARCHAR(16)")) continue;
             if (Utils.doesRecordExist("servicetask", "taskno", rec)) break;
             System.out.println(Utils.displayInputError("NO_RECORD"));
         } while (true);
@@ -213,20 +217,23 @@ public class Member2 implements Application {
             ResultSet res = retrieveTask(rec);
             int n = res.getMetaData().getColumnCount();
             String[] values = new String[n];
-            String[] labels = {"Task Reference", "Train Reference", "Task Date", "Task Type", "Duration in Hours", "Details"};
+            String[] labels = {"Task Date", "Task Type", "Duration in Hours", "Details"};
             for (int i = 0; i < n; i++) values[i] = res.getString(i + 1);
             String[] orig = Arrays.copyOf(values, n);
 
             while (true) {
                 // Create menu
-                List<String> menu = Utils.createModifiableMenu(labels, values);
+                List<String> menu = Utils.createModifiableMenu(labels, Arrays.copyOfRange(values, 2, n));
                 int choice = Utils.displayMenu("Modify fields to be updated, then choose 'Confirm' afterwards:", menu.toArray(new String[0]));
                 int num = menu.size() - 1;
 
                 if (choice == num) return; // return
-                else if (choice == num - 1) saveTaskUpdate(values); // confirm
+                else if (choice == num - 1) {
+                    saveTaskUpdate(values); // confirm
+                    return;
+                }
                 else if (choice == num - 2) values = Arrays.copyOf(orig, n); // reset
-                else handleTaskInput(choice, values); // modify
+                else handleTaskInput(choice + 2, values); // modify
             }
         } catch (SQLException _) {}
     }
@@ -259,7 +266,7 @@ public class Member2 implements Application {
             System.out.print("Input the Train Reference of the record you wish to delete (blank to return): ");
             String in = sc.nextLine().trim();
             if (in.isEmpty()) return;
-            if (!Utils.isValidInput(in, "VARCHAR 16")) continue;
+            if (!Utils.isValidInput(in, "VARCHAR(16)")) continue;
 
             // get the type of the train
             if (Utils.doesRecordExist("passengertrain", "trainno", in)) {
@@ -282,7 +289,7 @@ public class Member2 implements Application {
             System.out.print("Input the Task Reference of the record you wish to delete (blank to return): ");
             String in = sc.nextLine().trim();
             if (in.isEmpty()) return;
-            if (Utils.isValidInput(in, "VARCHAR 16"))
+            if (Utils.isValidInput(in, "VARCHAR(16)"))
                 if (Utils.safeDeleteRecord("servicetask", null, "taskno", in))
                     break;
         } while (true);
@@ -310,7 +317,10 @@ public class Member2 implements Application {
             int num = menu.size() - 1;
 
             if (choice == num) return; // return
-            else if (choice == num - 1) saveTrainRecord(values); // confirm
+            else if (choice == num - 1) { // confirm
+                saveTrainRecord(values);
+                return;
+            }
             else if (choice == num - 2) Arrays.fill(values, null); // reset
             else handleTrainInput(choice, values); // modify
         }
@@ -327,7 +337,7 @@ public class Member2 implements Application {
                     in = sc.nextLine().trim();
                     if (Utils.doesRecordExist("train", "trainno", in))
                         System.out.println(Utils.displayInputError("IDENTIFIER"));
-                    else if (Utils.isValidInput(in, "VARCHAR 12")) break;
+                    else if (Utils.isValidInput(in, "VARCHAR(12)")) break;
                 } while (true);
                 values[0] = in.isEmpty() ? null : in;
             }
@@ -336,10 +346,18 @@ public class Member2 implements Application {
                     System.out.print("Enter Train Label: ");
                     in = sc.nextLine().trim();
                     if (in.isEmpty()) break;
-                } while (!Utils.isValidInput(in, "VARCHAR 80"));
+                } while (!Utils.isValidInput(in, "VARCHAR(80)"));
                 values[1] = in.isEmpty() ? null : in;
             }
             case 2 -> { // Train Type
+                // only able to change if identifier has no reference with other tables
+                if (values[0] != null) {
+                    if (Utils.doesRecordExist("traincall", "trainno", values[0]) || Utils.doesRecordExist("servicetask", "trainno", values[0])) {
+                        System.out.println(Utils.displayInputError("REFERENCE"));
+                        return;
+                    }
+                }
+
                 String[] choices = {"Passenger", "Service", "Reset"};
                 int sel = Utils.displayMenu("Choose which type of train it would be:", choices);
                 switch (sel) {
@@ -384,7 +402,7 @@ public class Member2 implements Application {
                         System.out.print("Enter the maximum load capacity: ");
                         in = sc.nextLine().trim();
                         if (in.isEmpty()) break;
-                    } while(!Utils.isValidInput(in, "DECIMAL UNSIGNED"));
+                    } while(!Utils.isValidInput(in, "DECIMAL(8,2) UNSIGNED"));
                     values[6] = in.isEmpty() ? null : in;
                 }
             }
@@ -438,7 +456,10 @@ public class Member2 implements Application {
             int num = menu.size() - 1;
 
             if (choice == num) return; // return
-            else if (choice == num - 1) saveTaskRecord(values); // confirm
+            else if (choice == num - 1) { // confirm
+                saveTaskRecord(values);
+                return;
+            }
             else if (choice == num - 2) Arrays.fill(values, null); // reset
             else handleTaskInput(choice, values); // modify
         }
@@ -454,7 +475,7 @@ public class Member2 implements Application {
                     in = sc.nextLine().trim();
                     if (Utils.doesRecordExist("servicetask", "taskno", in))
                         System.out.println(Utils.displayInputError("IDENTIFIER"));
-                    else if (Utils.isValidInput(in, "VARCHAR 16")) break;
+                    else if (Utils.isValidInput(in, "VARCHAR(16)")) break;
                 } while (true);
                 values[0] = in.isEmpty() ? null : in;
             }
@@ -465,7 +486,7 @@ public class Member2 implements Application {
                     if (in.isEmpty()) break;
                     else if (!Utils.doesRecordExist("servicetrain", "trainno", in))
                         System.out.println(Utils.displayInputError("NO_RECORD"));
-                    else if (Utils.isValidInput(in, "VARCHAR 12")) break;
+                    else if (Utils.isValidInput(in, "VARCHAR(12)")) break;
                 } while (true);
                 values[1] = in.isEmpty() ? null : in;
             }
@@ -487,7 +508,7 @@ public class Member2 implements Application {
                     System.out.print("Enter the duration of this task in hours: ");
                     in = sc.nextLine();
                     if (in.isEmpty()) break;
-                } while (!Utils.isValidInput(in, "DECIMAL UNSIGNED"));
+                } while (!Utils.isValidInput(in, "DECIMAL(8,2) UNSIGNED"));
                 values[4] = in.isEmpty() ? null : in;
             }
             case 5 -> { // details
@@ -495,7 +516,7 @@ public class Member2 implements Application {
                     System.out.print("Enter details for task: ");
                     in = sc.nextLine();
                     if (in.isEmpty()) break;
-                } while (!Utils.isValidInput(in, "VARCHAR 255"));
+                } while (!Utils.isValidInput(in, "VARCHAR(255)"));
                 values[5] = in.isEmpty() ? null : in;
             }
         }
