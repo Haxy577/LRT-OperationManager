@@ -40,10 +40,7 @@ public class Utils {
      * @param result the result of the executed SQL statement
      */
     public static void displaySqlResult(ResultSet result) {
-        if (result == null) {
-            System.err.println("Invalid argument, the passed result cannot be null nor empty");
-            return;
-        }
+        if (result == null) return;
         try {
             ResultSetMetaData data = result.getMetaData();
             final int fields = data.getColumnCount();
@@ -193,26 +190,39 @@ public class Utils {
     public static boolean isValidInput(String input, String type) {
         if (input == null || type == null) return false;
         type = type.trim().toUpperCase();
+        String error = "";
 
         try {
-            if (type.contains("INT")) Integer.parseInt(input);
-            else if (type.contains("DATETIME")) Timestamp.valueOf(input);
-            else if (type.contains("DATE")) Date.valueOf(input);
+            if (type.contains("INT")) {
+                error = "INT";
+                Integer.parseInt(input);
+            }
+            else if (type.contains("DATETIME")) {
+                error = "DATETIME";
+                Timestamp.valueOf(input);
+            }
+            else if (type.contains("DATE")) {
+                error = "DATE";
+                Date.valueOf(input);
+            }
             else if (type.contains("VARCHAR")) { // if its a varchar with a specified size
-                int len = Integer.parseInt(type.substring(type.indexOf('(') + 1));
+                error = "VARCHAR";
+                int len = Integer.parseInt(type.substring(type.indexOf('(') + 1, type.indexOf(')')));
                 if (input.length() > len) {
                     System.out.println(displayInputError("LENGTH"));
                     return false;
                 }
             }
             else if (type.contains("DECIMAL")) {
+                error = "DECIMAL";
                 Double.parseDouble(input);
 
-                int real = Integer.parseInt(type.substring(type.indexOf('(' + 1), type.indexOf(',')));
-                int deci = Integer.parseInt(type.substring(type.indexOf(',' + 1), type.indexOf(')')));
+                int real = Integer.parseInt(type.substring(type.indexOf('(') + 1, type.indexOf(',')));
+                int deci = Integer.parseInt(type.substring(type.indexOf(',') + 1, type.indexOf(')')));
                 String pattern = String.format("^(\\d{1,%d})?(\\.\\d{1,%d})?$", real, deci);
                 if (!input.matches(pattern)) {
                     System.out.println(displayInputError("PRECISION"));
+                    return false;
                 }
             }
             else if (type.contains("UNSIGNED") && input.contains("-")) { // Check if the number has to be unsigned
@@ -224,7 +234,7 @@ public class Utils {
             }
             return true;
         } catch (Exception e) {
-            System.out.println(displayInputError(type));
+            System.out.println(displayInputError(error));
             return false;
         }
     }
