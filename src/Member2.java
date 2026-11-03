@@ -72,6 +72,7 @@ public class Member2 implements Application {
                     );
                     Utils.displaySqlResult(Utils.sqlSearch("Trains", sql, filters));
                 }
+                case 2 -> updateTrain();
                 case 3 -> deleteTrain();
                 default -> {
                     return;
@@ -113,29 +114,83 @@ public class Member2 implements Application {
         }
     }
 
+    private void updateTrain() {
+        Scanner sc = new Scanner(System.in);
+        String rec;
+
+        // get the record to be updated
+        do {
+            System.out.print("Input the Train Reference of the record to be edited (blank to return): ");
+            rec = sc.nextLine().trim();
+            if (rec.isEmpty()) return;
+            if (!Utils.isValidInput(rec, "VARCHAR 12")) continue;
+            if (Utils.doesRecordExist("train", "trainno", rec)) break;
+            System.out.println(Utils.displayInputError("NO_RECORD"));
+        } while (true);
+
+        try {
+            // load values
+            ResultSet res = (retrieveTrainRecord(rec));
+            ResultSetMetaData data = res.getMetaData();
+            int n = data.getColumnCount();
+            String[] values = new String[n];
+            for (int i = 1; i <= n; i++) values[i - 1] = res.getString(i);
+            String[] orig = Arrays.copyOf(values, n);
+
+            String[] labels = {
+                    "Train Reference", "Train Label", "Train Type",
+                    "Number of Cars", "Passenger Capacity",
+                    "Principal Duty", "Payload Capacity",
+                    "Train Activation"
+            };
+
+            while (true) {
+                // create menu
+                List<String> menu = Utils.createModifiableMenu(labels, values);
+                int index = 5;
+                if (!"Passenger".equalsIgnoreCase(values[2])) {
+                    menu.remove(3);
+                    menu.remove(3);
+                    index -= 2;
+                }
+                if (!"Service".equalsIgnoreCase(values[2])) {
+                    menu.remove(index);
+                    menu.remove(index);
+                }
+
+                int choice = Utils.displayMenu("Modify fields to be updated, then choose 'Confirm' afterwards:", menu.toArray(new String[0]));
+                int num = menu.size() - 1;
+
+                if (choice == num) return; // return
+                else if (choice == num - 1) saveTrainUpdate(values); // confirm
+                else if (choice == num - 2) values = Arrays.copyOf(orig, n); // reset
+                else { // modify
+                    if (num == 6 && choice == 3) handleTrainInput(5, values);
+                    else handleTrainInput(choice, values);
+                }
+            }
+        } catch (SQLException _) {}
+    }
+
+    private void saveTrainUpdate(String[] values) {
+
+    }
+
     private ResultSet retrieveTrainRecord(String trainRef) {
         Connection c = Utils.getSqlConnection();
         if (c == null) return null;
         try {
-            String sql = "SELECT * FROM train WHERE trainno = " + trainRef;
+            String sql = "SELECT t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, t.active, t.revno, p.revno, s.revno " +
+                         "FROM train t LEFT JOIN passengertrain p ON t.trainno = p.trainno LEFT JOIN servicetrain s ON t.trainno = s.trainno " +
+                         "WHERE t.trainno = ?;";
             PreparedStatement ps = c.prepareStatement(sql);
+            ps.setString(1, trainRef);
             ResultSet res = ps.executeQuery();
-
-            // if there is no match just return
-            if (!res.next()) return res;
-
-            String type = res.getString("traintyp");
-            if ("Passenger".equalsIgnoreCase(type))
-                sql = "SELECT * FROM train t JOIN passengertrain p ON t.trainno = p.trainno WHERE t.trainno = " + trainRef;
-            else if ("Service".equalsIgnoreCase(type))
-                sql = "SELECT * FROM train t JOIN servicetrain s ON t.trainno = s.trainno WHERE t.trainno = " + trainRef;
-
-            ps = c.prepareStatement(sql);
-            res = ps.executeQuery();
             res.next();
             return res;
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            System.out.println(Utils.displayInputError("NO_RECORD"));
+            return null;
         }
     }
 
@@ -160,6 +215,7 @@ public class Member2 implements Application {
             String[] values = new String[n];
             String[] labels = {"Task Reference", "Train Reference", "Task Date", "Task Type", "Duration in Hours", "Details"};
             for (int i = 0; i < n; i++) values[i] = res.getString(i + 1);
+            String[] orig = Arrays.copyOf(values, n);
 
             while (true) {
                 // Create menu
@@ -169,7 +225,7 @@ public class Member2 implements Application {
 
                 if (choice == num) return; // return
                 else if (choice == num - 1) saveTaskUpdate(values); // confirm
-                else if (choice == num - 2) Arrays.fill(values, null); // reset
+                else if (choice == num - 2) values = Arrays.copyOf(orig, n); // reset
                 else handleTaskInput(choice, values); // modify
             }
         } catch (SQLException _) {}
@@ -239,12 +295,13 @@ public class Member2 implements Application {
         while (true) {
             // create menu
             List<String> menu = Utils.createModifiableMenu(labels, values);
+            int index = 5;
             if (!"Passenger".equalsIgnoreCase(values[2])) {
                 menu.remove(3);
                 menu.remove(3);
+                index -= 2;
             }
             if (!"Service".equalsIgnoreCase(values[2])) {
-                int index = menu.size() - 5;
                 menu.remove(index);
                 menu.remove(index);
             }
@@ -330,6 +387,11 @@ public class Member2 implements Application {
                     } while(!Utils.isValidInput(in, "DECIMAL UNSIGNED"));
                     values[6] = in.isEmpty() ? null : in;
                 }
+            }
+            case 5 -> { // Train activation
+                String[] status = {"1", "0", "Reset"};
+                int sel = Utils.displayMenu("Choose the Activation Status of this Train: ", status);
+                values[7] = sel == status.length - 1 ? null : status[sel];
             }
         }
     }
