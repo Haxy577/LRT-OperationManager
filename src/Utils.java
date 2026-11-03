@@ -217,9 +217,9 @@ public class Utils {
                 error = "DECIMAL";
                 Double.parseDouble(input);
 
-                int real = Integer.parseInt(type.substring(type.indexOf('(') + 1, type.indexOf(',')));
                 int deci = Integer.parseInt(type.substring(type.indexOf(',') + 1, type.indexOf(')')));
-                String pattern = String.format("^(\\d{1,%d})?(\\.\\d{1,%d})?$", real, deci);
+                int num = Integer.parseInt(type.substring(type.indexOf('(') + 1, type.indexOf(','))) - deci;
+                String pattern = String.format("^(\\d{1,%d})?(\\.\\d{1,%d})?$", num, deci);
                 if (!input.matches(pattern)) {
                     System.out.println(displayInputError("PRECISION"));
                     return false;
