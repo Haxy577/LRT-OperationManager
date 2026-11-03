@@ -31,19 +31,18 @@ public class Member2 implements Application {
 
     @Override
     public void menu() {
-        String[] options = {
-                "Manage Trains",
-                "Manage Support Tasks",
-                "Exit"
-        };
-        String prompt = "Choose which category you want to manage:";
-        switch (Utils.displayMenu(prompt, options)) {
-            case 0:
-                trainMenu();
-                break;
-            case 1:
-                taskMenu();
-                break;
+        while (true) {
+            String[] options = {
+                    "Manage Trains",
+                    "Manage Support Tasks",
+                    "Exit"
+            };
+            String prompt = "Choose which category you want to manage:";
+            switch (Utils.displayMenu(prompt, options)) {
+                case 0 -> trainMenu();
+                case 1 -> taskMenu();
+                default -> {return;}
+            }
         }
     }
 

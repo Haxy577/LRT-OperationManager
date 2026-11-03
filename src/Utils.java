@@ -41,8 +41,14 @@ public class Utils {
      * @return the corresponding value of the chosen option
      */
     public static String displayMenu(String prompt, String[] options, String[] values) {
-        if (options == null || options.length < 1) System.err.println("The provided options cannot be null nor empty");
-        if (values != null && options.length != values.length) System.err.println("The options and values must match each other");
+        if (options == null || options.length < 1) {
+            System.err.println("The provided options cannot be null nor empty");
+            return null;
+        }
+        if (values != null && options.length != values.length) {
+            System.err.println("The options and values must match each other");
+            return null;
+        }
         String[] res = values == null ? options : values;
 
         System.out.println(prompt);
@@ -111,22 +117,40 @@ public class Utils {
         }
     }
 
+    public static List<String> createModifiableMenu(String[] labels, String[] values) {
+        if (labels == null || values == null || labels.length > values.length) return new ArrayList<>();
+        List<String> menu = new ArrayList<>();
+        for (int i = 0; i < labels.length; i++) {
+            menu.add(String.format("%-25s -> %s", labels[i], values[i] == null ? "None" : values[i]));
+        }
+        menu.add("Reset");
+        menu.add("Confirm");
+        menu.add("Return");
+        return menu;
+    }
+
     public static ResultSet sqlSearch(String tableName, String baseSql, List<Filter> filters) {
         Scanner sc = new Scanner(System.in);
 
         while (true) {
             // Create the menu
             List<String> menu = new ArrayList<>();
+            List<String> ref = new ArrayList<>();
             for (Filter f : filters) {
                 String valDisplay = (f.getSelectedValue() != null) ? f.getSelectedValue() : "None";
                 menu.add(String.format("%-25s -> %s", f.getLabel(), valDisplay));
+                ref.add(f.getFieldName());
             }
             menu.add("Reset all filters");
+            ref.add("Reset");
             menu.add("Execute search");
+            ref.add("Execute");
             menu.add("Return");
+            ref.add("Return");
 
             int len = menu.size();
-            int choice = displayMenu("Configure " + tableName + " search filters, then select 'Execute search':", menu.toArray(new String[0]));
+            String prompt = "Configure " + tableName + " search filters, then select 'Execute search':";
+            int choice = displayMenu(prompt, menu.toArray(new String[0]));
 
             // Return to previous menu
             if (choice == len - 1) {
@@ -320,18 +344,6 @@ public class Utils {
             return false;
         }
         return true;
-    }
-
-    public static List<String> createModifiableMenu(String[] labels, String[] values) {
-        if (labels == null || values == null || labels.length > values.length) return new ArrayList<>();
-        List<String> menu = new ArrayList<>();
-        for (int i = 0; i < labels.length; i++) {
-            menu.add(String.format("%-25s -> %s", labels[i], values[i] == null ? "None" : values[i]));
-        }
-        menu.add("Reset");
-        menu.add("Confirm");
-        menu.add("Return");
-        return menu;
     }
 
     public static PreparedStatement prepareStatement(Connection c, String sql, Object[] values, SQLType[] types) throws SQLException {
