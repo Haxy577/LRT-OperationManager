@@ -27,6 +27,7 @@ import java.util.*;
  *
  * @author Richmond Salvador
  */
+/*
 public class Member2 implements Application {
 
     @Override
@@ -102,14 +103,14 @@ public class Member2 implements Application {
 
     private void updateTrain() {
         Scanner sc = new Scanner(System.in);
+        String prompt = "Input the Train Reference of the record to be edited (blank to return): ";
         String rec;
 
         // get the record to be updated
         do {
-            System.out.print("Input the Train Reference of the record to be edited (blank to return): ");
-            rec = sc.nextLine().trim();
-            if (rec.isEmpty()) return;
-            if (!Utils.isValidInput(rec, "VARCHAR(12)")) continue;
+            Object in = Utils.getInput(prompt, "VARCHAR(12)");
+            if (in == null) return;
+            rec = in.toString();
             if (Utils.doesRecordExist("train", "trainno", rec)) break;
             Utils.displayInputError("NO_RECORD");
         } while (true);
@@ -144,20 +145,12 @@ public class Member2 implements Application {
                     menu.remove(index);
                 }
 
-                int choice = Utils.displayMenu("Modify fields to be updated, then choose 'Confirm' afterwards:", menu.toArray(new String[0]));
-                int num = menu.size() - 1;
+                String choice = Utils.displayMenu("Modify fields to be updated, then choose 'Confirm' afterwards:", menu.toArray(new String[0]));
 
-                if (choice == num) return; // return
-                else if (choice == num - 1) { // confirm
-                    saveTrainUpdate(values, !orig[2].equalsIgnoreCase(values[2]));
-                    return;
-                }
-                else if (choice == num - 2) values = Arrays.copyOf(orig, n); // reset
-                else { // modify
-                    choice += 1;
-                    if (num == 5 && choice == 3) handleTrainInput(5, values);
-                    else handleTrainInput(choice, values);
-                }
+                if ("Return".equals(choice)) return;
+                else if ("Reset".equals(choice)) values = Arrays.copyOf(orig, n);
+                else if ("Confirm".equals(choice)) saveTrainUpdate();
+                else handleTrainInput(choice, values);
             }
         } catch (SQLException _) {}
     }
@@ -230,13 +223,12 @@ public class Member2 implements Application {
     private void updateTask() {
         Scanner sc = new Scanner(System.in);
         String rec;
+        String prompt = "Input the Task Reference of the record to be edited (blank to return): ";
 
-        // get the record to be updated
         do {
-            System.out.print("Input the Task Reference of the record to be edited (blank to return): ");
-            rec = sc.nextLine().trim();
-            if (rec.isEmpty()) return;
-            if (!Utils.isValidInput(rec, "VARCHAR(16)")) continue;
+            Object in = Utils.getInput(prompt, "VARCHAR(16)");
+            if (in == null) return;
+            rec = in.toString();
             if (Utils.doesRecordExist("servicetask", "taskno", rec)) break;
             Utils.displayInputError("NO_RECORD");
         } while (true);
@@ -253,16 +245,12 @@ public class Member2 implements Application {
             while (true) {
                 // Create menu
                 List<String> menu = Utils.createModifiableMenu(labels, Arrays.copyOfRange(values, 2, n));
-                int choice = Utils.displayMenu("Modify fields to be updated, then choose 'Confirm' afterwards:", menu.toArray(new String[0]));
-                int num = menu.size() - 1;
+                String choice = Utils.displayMenu("Modify fields to be updated, then choose 'Confirm' afterwards:", menu.toArray(new String[0]));
 
-                if (choice == num) return; // return
-                else if (choice == num - 1) {
-                    saveTaskUpdate(values); // confirm
-                    return;
-                }
-                else if (choice == num - 2) values = Arrays.copyOf(orig, n); // reset
-                else handleTaskInput(choice + 2, values); // modify
+                if ("Return".equals(choice)) return;
+                else if ("Reset".equals(choice)) values = Arrays.copyOf(orig, n);
+                else if ("Confirm".equals(choice)) saveTaskUpdate(values);
+                else handleTaskInput(choice, values);
             }
         } catch (SQLException _) {}
     }
@@ -370,7 +358,7 @@ public class Member2 implements Application {
         }
     }
 
-    private void handleTrainInput(int choice, String[] values) {
+    private void handleTrainInput(String choice, String[] values) {
         Scanner sc = new Scanner(System.in);
         String in;
 
@@ -585,4 +573,4 @@ public class Member2 implements Application {
             throw new RuntimeException(e);
         }
     }
-}
+}*/
