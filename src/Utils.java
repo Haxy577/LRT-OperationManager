@@ -43,7 +43,7 @@ public class Utils {
     public static String displayMenu(String prompt, String[] options) {
         if (options == null || options.length < 1) {
             System.err.println("The provided options cannot be null nor empty");
-            return null;
+            return "";
         }
 
         System.out.println(prompt);
