@@ -209,7 +209,7 @@ public class Utils {
                 error = "VARCHAR";
                 int len = Integer.parseInt(type.substring(type.indexOf('(') + 1, type.indexOf(')')));
                 if (input.length() > len) {
-                    System.out.println(displayInputError("LENGTH"));
+                    displayInputError("LENGTH");
                     return false;
                 }
             }
@@ -221,12 +221,12 @@ public class Utils {
                 int num = Integer.parseInt(type.substring(type.indexOf('(') + 1, type.indexOf(','))) - deci;
                 String pattern = String.format("^(\\d{1,%d})?(\\.\\d{1,%d})?$", num, deci);
                 if (!input.matches(pattern)) {
-                    System.out.println(displayInputError("PRECISION"));
+                    displayInputError("PRECISION");
                     return false;
                 }
             }
             else if (type.contains("UNSIGNED") && input.contains("-")) { // Check if the number has to be unsigned
-                System.out.println(displayInputError("SIGNED"));
+                displayInputError("SIGNED");
                 return false;
             }
             else {
@@ -234,13 +234,12 @@ public class Utils {
             }
             return true;
         } catch (Exception e) {
-            System.out.println(displayInputError(error));
+            displayInputError(error);
             return false;
         }
     }
 
-    public static String displayInputError(String type) {
-        if (type == null) return null;
+    public static void displayInputError(String type) {
         String msg = switch (type) {
             case "INT", "INT UNSIGNED", "TINYINT", "SMALLINT", "INTEGER" -> "Please input an number/integer";
             case "DECIMAL" -> "Please input a decimal number";
@@ -253,9 +252,10 @@ public class Utils {
             case "DELETE" -> "Cannot delete the record due to it being referenced in other table(s)";
             case "REFERENCE" -> "Cannot modify this field, this value is being referenced in other table(s)";
             case "PRECISION" -> "The decimal is to large/precise. Please enter a smaller/less precise number";
+            case "REVISION" -> "Please try again, the record you are trying to update is outdated";
             default -> "Error";
         };
-        return RED + "Invalid input: " + msg + RESET;
+        System.out.println(RED + "Invalid input: " + msg + RESET);
     }
 
     public static boolean doesRecordExist(String table, String field, String value) {
@@ -283,7 +283,7 @@ public class Utils {
 
             // if there was no match
             if (!res.next()) {
-                System.out.println(displayInputError("NO_RECORD"));
+                displayInputError("NO_RECORD");
                 return false;
             }
             int revno = res.getInt("revno");
@@ -292,7 +292,7 @@ public class Utils {
             if (relatedTables != null) {
                 for (String t : relatedTables) {
                     if (doesRecordExist(t, field, value)) {
-                        System.out.println(displayInputError("DELETE"));
+                        displayInputError("DELETE");
                         return false;
                     }
                 }
