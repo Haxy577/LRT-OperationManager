@@ -27,23 +27,23 @@ import java.util.*;
  *
  * @author Richmond Salvador
  */
+/*
 public class Member2 implements Application {
 
     @Override
     public void menu() {
-        String[] options = {
-                "Manage Trains",
-                "Manage Support Tasks",
-                "Exit"
-        };
-        String prompt = "Choose which category you want to manage:";
-        switch (Utils.displayMenu(prompt, options)) {
-            case 0:
-                trainMenu();
-                break;
-            case 1:
-                taskMenu();
-                break;
+        while (true) {
+            String[] options = {
+                    "Manage Trains",
+                    "Manage Support Tasks",
+                    "Exit"
+            };
+            String prompt = "Choose which category you want to manage:";
+            switch (Utils.displayMenu(prompt, options)) {
+                case 0 -> trainMenu();
+                case 1 -> taskMenu();
+                default -> {return;}
+            }
         }
     }
 
@@ -72,6 +72,7 @@ public class Member2 implements Application {
                     );
                     Utils.displaySqlResult(Utils.sqlSearch("Trains", sql, filters));
                 }
+                case 2 -> updateTrain();
                 case 3 -> deleteTrain();
                 default -> {
                     return;
@@ -104,11 +105,214 @@ public class Member2 implements Application {
                     );
                     Utils.displaySqlResult(Utils.sqlSearch("Trains", sql, filters));
                 }
+                case 2 -> updateTask();
                 case 3 -> deleteTask();
                 default -> {
                     return;
                 }
             }
+        }
+    }
+
+    private void updateTrain() {
+        Scanner sc = new Scanner(System.in);
+        String rec;
+
+        // get the record to be updated
+        do {
+            System.out.print("Input the Train Reference of the record to be edited (blank to return): ");
+            rec = sc.nextLine().trim();
+            if (rec.isEmpty()) return;
+            if (!Utils.isValidInput(rec, "VARCHAR(12)")) continue;
+            if (Utils.doesRecordExist("train", "trainno", rec)) break;
+            Utils.displayInputError("NO_RECORD");
+        } while (true);
+
+        try {
+            // load values
+            ResultSet res = (retrieveTrainRecord(rec));
+            ResultSetMetaData data = res.getMetaData();
+            int n = data.getColumnCount();
+            String[] values = new String[n];
+            for (int i = 1; i <= n; i++) values[i - 1] = res.getString(i);
+            String[] orig = Arrays.copyOf(values, n);
+
+            String[] labels = {
+                    "Train Label", "Train Type",
+                    "Number of Cars", "Passenger Capacity",
+                    "Principal Duty", "Payload Capacity",
+                    "Train Activation"
+            };
+
+            while (true) {
+                // create menu
+                List<String> menu = Utils.createModifiableMenu(labels, Arrays.copyOfRange(values, 1, n));
+                int index = 4;
+                if (!"Passenger".equalsIgnoreCase(values[2])) {
+                    menu.remove(2);
+                    menu.remove(2);
+                    index -= 2;
+                }
+                if (!"Service".equalsIgnoreCase(values[2])) {
+                    menu.remove(index);
+                    menu.remove(index);
+                }
+
+                int choice = Utils.displayMenu("Modify fields to be updated, then choose 'Confirm' afterwards:", menu.toArray(new String[0]));
+                int num = menu.size() - 1;
+
+                if (choice == num) return; // return
+                else if (choice == num - 1) { // confirm
+                    saveTrainUpdate(values, !orig[2].equalsIgnoreCase(values[2]));
+                    return;
+                }
+                else if (choice == num - 2) values = Arrays.copyOf(orig, n); // reset
+                else { // modify
+                    choice += 1;
+                    if (num == 5 && choice == 3) handleTrainInput(5, values);
+                    else handleTrainInput(choice, values);
+                }
+            }
+        } catch (SQLException _) {}
+    }
+
+    private void saveTrainUpdate(String[] values, boolean hasChangedType) {
+        try {
+            Connection c = Utils.getSqlConnection();
+            String sql = "UPDATE train SET label  = ?, traintyp = ?, active = ?, revno = revno + 1 WHERE trainno = ? AND revno = ?;";
+            Object[] insert = {values[1], values[2], Integer.parseInt(values[7]), values[0], Integer.parseInt(values[8])};
+            SQLType[] types = {JDBCType.VARCHAR, JDBCType.VARCHAR, JDBCType.TINYINT, JDBCType.VARCHAR, JDBCType.INTEGER};
+            PreparedStatement ps = Utils.prepareStatement(c, sql, insert, types);
+
+            // update
+            int rows = ps.executeUpdate();
+            if (rows == 0) {
+                Utils.displayDatabaseError("REVISION", null);
+                return;
+            }
+
+            if ("Passenger".equalsIgnoreCase(values[2])) {
+                sql = "UPDATE passengertrain SET cars = ?, paxcap = ?, revno = revno + 1 WHERE trainno = ? AND revno = ?;";
+                insert = new Object[]{Integer.parseInt(values[3]), Integer.parseInt(values[4]), values[0], Integer.parseInt(values[9])};
+                types = new SQLType[]{JDBCType.INTEGER, JDBCType.INTEGER, JDBCType.VARCHAR, JDBCType.INTEGER};
+                ps = Utils.prepareStatement(c, sql, insert, types);
+
+                // update passenger db
+                rows = ps.executeUpdate();
+                if (rows == 0) Utils.displayDatabaseError("REVISION", null);
+
+                // delete other record if the type changed
+                if (hasChangedType)
+                    Utils.safeDeleteRecord("servicetrain", new String[] {"traincall", "servicetask"}, "trainno", values[0]);
+            } else if ("Service".equalsIgnoreCase(values[2])) {
+                sql = "UPDATE servicetrain SET dutytype = ?, loadton = ?, revno = revno + 1 WHERE trainno = ? AND revno = ?;";
+                insert = new Object[]{values[5], Double.parseDouble(values[6]), values[0], Integer.parseInt(values[9])};
+                types = new SQLType[]{JDBCType.VARCHAR, JDBCType.DECIMAL, JDBCType.VARCHAR, JDBCType.INTEGER};
+                ps = Utils.prepareStatement(c, sql, insert, types);
+
+                // update service db
+                rows = ps.executeUpdate();
+                if (rows == 0) Utils.displayDatabaseError("REVISION", null);
+
+                // delete other record if the type changed
+                if (hasChangedType)
+                    Utils.safeDeleteRecord("passengertrain", new String[] {"traincall"}, "trainno", values[0]);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private ResultSet retrieveTrainRecord(String trainRef) {
+        Connection c = Utils.getSqlConnection();
+        if (c == null) return null;
+        try {
+            String sql = "SELECT t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, t.active, t.revno, p.revno, s.revno " +
+                         "FROM train t LEFT JOIN passengertrain p ON t.trainno = p.trainno LEFT JOIN servicetrain s ON t.trainno = s.trainno " +
+                         "WHERE t.trainno = ?;";
+            PreparedStatement ps = c.prepareStatement(sql);
+            ps.setString(1, trainRef);
+            ResultSet res = ps.executeQuery();
+            res.next();
+            return res;
+        } catch (SQLException e) {
+            Utils.displayInputError("NO_RECORD");
+            return null;
+        }
+    }
+
+    private void updateTask() {
+        Scanner sc = new Scanner(System.in);
+        String rec;
+
+        // get the record to be updated
+        do {
+            System.out.print("Input the Task Reference of the record to be edited (blank to return): ");
+            rec = sc.nextLine().trim();
+            if (rec.isEmpty()) return;
+            if (!Utils.isValidInput(rec, "VARCHAR(16)")) continue;
+            if (Utils.doesRecordExist("servicetask", "taskno", rec)) break;
+            Utils.displayInputError("NO_RECORD");
+        } while (true);
+
+        try {
+            // load values
+            ResultSet res = retrieveTask(rec);
+            int n = res.getMetaData().getColumnCount();
+            String[] values = new String[n];
+            String[] labels = {"Task Date", "Task Type", "Duration in Hours", "Details"};
+            for (int i = 0; i < n; i++) values[i] = res.getString(i + 1);
+            String[] orig = Arrays.copyOf(values, n);
+
+            while (true) {
+                // Create menu
+                List<String> menu = Utils.createModifiableMenu(labels, Arrays.copyOfRange(values, 2, n));
+                int choice = Utils.displayMenu("Modify fields to be updated, then choose 'Confirm' afterwards:", menu.toArray(new String[0]));
+                int num = menu.size() - 1;
+
+                if (choice == num) return; // return
+                else if (choice == num - 1) {
+                    saveTaskUpdate(values); // confirm
+                    return;
+                }
+                else if (choice == num - 2) values = Arrays.copyOf(orig, n); // reset
+                else handleTaskInput(choice + 2, values); // modify
+            }
+        } catch (SQLException _) {}
+    }
+
+    private void saveTaskUpdate(String[] values) {
+        try {
+            Connection c = Utils.getSqlConnection();
+            String sql = "UPDATE servicetask SET taskdate = ?, tasktype = ?, hours = ?, details = ?, revno = revno + 1 WHERE taskno = ? AND revno = ?;";
+            Object[] insert = {Date.valueOf(values[2]), values[3], Double.parseDouble(values[4]), values[5], values[0], Integer.parseInt(values[6])};
+            JDBCType[] types = {JDBCType.DATE, JDBCType.VARCHAR, JDBCType.DECIMAL, JDBCType.VARCHAR, JDBCType.VARCHAR, JDBCType.INTEGER};
+            PreparedStatement ps = Utils.prepareStatement(c, sql, insert, types);
+
+            int rows = ps.executeUpdate();
+            if (rows == 0) Utils.displayDatabaseError("REVISION", null);
+
+            // close resources
+            c.close();
+            ps.close();
+        } catch (SQLException e) {
+            Utils.displayDatabaseError(null, e);
+        }
+    }
+
+    private ResultSet retrieveTask(String val) {
+        Connection c = Utils.getSqlConnection();
+        if (c == null) return null;
+        try {
+            String sql = "SELECT * FROM servicetask WHERE taskno = ?;";
+            PreparedStatement ps = c.prepareStatement(sql);
+            ps.setString(1, val);
+            ResultSet res = ps.executeQuery();
+            res.next();
+            return res;
+        } catch (SQLException e) {
+            Utils.displayInputError("NO_RECORD");
+            return null;
         }
     }
 
@@ -118,9 +322,9 @@ public class Member2 implements Application {
 
         do {
             System.out.print("Input the Train Reference of the record you wish to delete (blank to return): ");
-            String in = sc.nextLine();
+            String in = sc.nextLine().trim();
             if (in.isEmpty()) return;
-            if (!Utils.isValidInput(in, "VARCHAR 16")) continue;
+            if (!Utils.isValidInput(in, "VARCHAR(16)")) continue;
 
             // get the type of the train
             if (Utils.doesRecordExist("passengertrain", "trainno", in)) {
@@ -141,66 +345,46 @@ public class Member2 implements Application {
         Scanner sc = new Scanner(System.in);
         do {
             System.out.print("Input the Task Reference of the record you wish to delete (blank to return): ");
-            String in = sc.nextLine();
+            String in = sc.nextLine().trim();
             if (in.isEmpty()) return;
-            if (Utils.isValidInput(in, "VARCHAR 16"))
+            if (Utils.isValidInput(in, "VARCHAR(16)"))
                 if (Utils.safeDeleteRecord("servicetask", null, "taskno", in))
                     break;
         } while (true);
     }
 
     private void createTrain() {
-        // Create arrays to store values of trains
-        String[] train = new String[3];
-        String[] passenger = new String[2];
-        String[] service = new String[2];
+        String[] values = new String[7];
+        String[] labels = {"Train Reference", "Train Label", "Train Type", "Number of Cars", "Passenger Capacity", "Principal Duty", "Payload Capacity"};
 
         while (true) {
             // create menu
-            List<String> menu = new ArrayList<>();
-            menu.add(String.format("%-25s -> %s", "Train Reference", train[0] == null ? "None" : train[0]));
-            menu.add(String.format("%-25s -> %s", "Train Label", train[1] == null ? "None" : train[1]));
-            menu.add(String.format("%-25s -> %s", "Train Type", train[2] == null ? "None" : train[2]));
-            if (train[2] != null) {
-                if (train[2].equals("Passenger")) {
-                    menu.add(String.format("%-25s -> %s", "Number of Cars", passenger[0] == null ? "None" : passenger[0]));
-                    menu.add(String.format("%-25s -> %s", "Passenger Capacity", passenger[1] == null ? "None" : passenger[1]));
-                } else if (train[2].equals("Service")) {
-                    menu.add(String.format("%-25s -> %s", "Principal Duty", service[0] == null ? "None" : service[0]));
-                    menu.add(String.format("%-25s -> %s", "Payload Capacity", service[1] == null ? "None" : service[1]));
-                }
+            List<String> menu = Utils.createModifiableMenu(labels, values);
+            int index = 5;
+            if (!"Passenger".equalsIgnoreCase(values[2])) {
+                menu.remove(3);
+                menu.remove(3);
+                index -= 2;
+            }
+            if (!"Service".equalsIgnoreCase(values[2])) {
+                menu.remove(index);
+                menu.remove(index);
             }
 
-            int num = menu.size();
-            menu.add("Reset");
-            menu.add("Create Record");
-            menu.add("Return");
+            int choice = Utils.displayMenu("Modify every field, then choose 'Confirm' afterwards:", menu.toArray(new String[0]));
+            int num = menu.size() - 1;
 
-            int choice = Utils.displayMenu("Modify every field, then choose 'Create Record' afterwards:", menu.toArray(new String[0]));
-
-            // reset
-            if (choice == num) {
-                Arrays.fill(train, null);
-                Arrays.fill(passenger, null);
-                Arrays.fill(service, null);
-            }
-            // insert record
-            else if (choice == num + 1) {
-                saveTrainRecord(train, passenger, service);
+            if (choice == num) return; // return
+            else if (choice == num - 1) { // confirm
+                saveTrainRecord(values);
                 return;
             }
-            // return
-            else if (choice == num + 2) {
-                return;
-            }
-            // modify field values
-            else {
-                handleCreateTrainInput(choice, train, passenger, service);
-            }
+            else if (choice == num - 2) Arrays.fill(values, null); // reset
+            else handleTrainInput(choice, values); // modify
         }
     }
 
-    private void handleCreateTrainInput(int choice, String[] train, String[] passenger, String[] service) {
+    private void handleTrainInput(int choice, String[] values) {
         Scanner sc = new Scanner(System.in);
         String in;
 
@@ -210,93 +394,108 @@ public class Member2 implements Application {
                     System.out.print("Enter unique Train Reference: ");
                     in = sc.nextLine().trim();
                     if (Utils.doesRecordExist("train", "trainno", in))
-                        System.out.println(Utils.displayInputError("IDENTIFIER"));
-                    else if (Utils.isValidInput(in, "VARCHAR 12")) break;
+                        Utils.displayInputError("IDENTIFIER");
+                    else if (Utils.isValidInput(in, "VARCHAR(12)")) break;
                 } while (true);
-                train[0] = in.isEmpty() ? null : in;
+                values[0] = in.isEmpty() ? null : in;
             }
             case 1 -> { // Train Label
                 do {
                     System.out.print("Enter Train Label: ");
                     in = sc.nextLine().trim();
                     if (in.isEmpty()) break;
-                } while (!Utils.isValidInput(in, "VARCHAR 80"));
-                train[1] = in.isEmpty() ? null : in;
+                } while (!Utils.isValidInput(in, "VARCHAR(80)"));
+                values[1] = in.isEmpty() ? null : in;
             }
             case 2 -> { // Train Type
+                // only able to change if identifier has no reference with other tables
+                if (values[0] != null) {
+                    if (Utils.doesRecordExist("traincall", "trainno", values[0]) || Utils.doesRecordExist("servicetask", "trainno", values[0])) {
+                        Utils.displayInputError("REFERENCE");
+                        return;
+                    }
+                }
+
                 String[] choices = {"Passenger", "Service", "Reset"};
                 int sel = Utils.displayMenu("Choose which type of train it would be:", choices);
                 switch (sel) {
                     case 0 -> { // passenger train
-                        train[2] = choices[0];
-                        Arrays.fill(service, null);
+                        values[2] = choices[0];
+                        values[5] = null;
+                        values[6] = null;
                     }
                     case 1 -> { // service train
-                        train[2] = choices[1];
-                        Arrays.fill(passenger, null);
+                        values[2] = choices[1];
+                        values[3] = null;
+                        values[4] = null;
                     }
-                    default -> train[2] = null;
+                    default -> values[2] = null;
                 }
-                train[2] = sel == choices.length - 1 ? null : choices[sel];
+                values[2] = sel == choices.length - 1 ? null : choices[sel];
             }
             case 3 -> { // cars or duty
-                if ("Passenger".equals(train[2])) {
+                if ("Passenger".equals(values[2])) {
                     do {
                         System.out.print("Enter the amount of passenger cars: ");
                         in = sc.nextLine().trim();
                         if (in.isEmpty()) break;
                     } while(!Utils.isValidInput(in, "INT UNSIGNED"));
-                    passenger[0] = in.isEmpty() ? null : in;
-                } else if ("Service".equals(train[2])) {
+                    values[3] = in.isEmpty() ? null : in;
+                } else if ("Service".equals(values[2])) {
                     String[] duties = {"Inspection", "Maintenance", "Recovery", "Reset"};
                     int sel = Utils.displayMenu("Choose the duty of this train: ", duties);
-                    service[0] = sel == duties.length - 1 ? null : duties[sel];
+                    values[5] = sel == duties.length - 1 ? null : duties[sel];
                 }
             }
             case 4 -> { // passenger or service capacity
-                if ("Passenger".equals(train[2])) {
+                if ("Passenger".equals(values[2])) {
                     do {
                         System.out.print("Enter the maximum passenger capacity: ");
                         in = sc.nextLine().trim();
                         if (in.isEmpty()) break;
                     } while(!Utils.isValidInput(in, "INT UNSIGNED"));
-                    passenger[1] = in.isEmpty() ? null : in;
-                } else if ("Service".equals(train[2])) {
+                    values[4] = in.isEmpty() ? null : in;
+                } else if ("Service".equals(values[2])) {
                     do {
                         System.out.print("Enter the maximum load capacity: ");
                         in = sc.nextLine().trim();
                         if (in.isEmpty()) break;
-                    } while(!Utils.isValidInput(in, "DECIMAL UNSIGNED"));
-                    service[1] = in.isEmpty() ? null : in;
+                    } while(!Utils.isValidInput(in, "DECIMAL(8,2) UNSIGNED"));
+                    values[6] = in.isEmpty() ? null : in;
                 }
+            }
+            case 5 -> { // Train activation
+                String[] status = {"1", "0", "Reset"};
+                int sel = Utils.displayMenu("Choose the Activation Status of this Train: ", status);
+                values[7] = sel == status.length - 1 ? null : status[sel];
             }
         }
     }
 
-    private void saveTrainRecord (String[] trainVal, String[] passengerVal, String[] serviceVal) {
+    private void saveTrainRecord (String[] values) {
         try {
             Connection c = Utils.getSqlConnection();
             if (c == null) return;
 
             final String insertTrain = "INSERT INTO train (trainno, label, traintyp, active, revno) VALUES (?, ?, ?, 1, 1);";
             PreparedStatement ps = c.prepareStatement(insertTrain);
-            for (int i = 0; i < trainVal.length; i++) ps.setString(i + 1, trainVal[i]);
+            for (int i = 0; i < 3; i++) ps.setString(i + 1, values[i]);
             ps.execute();
 
-            if ("Passenger".equalsIgnoreCase(trainVal[2])) {
+            if ("Passenger".equalsIgnoreCase(values[2])) {
                 final String insertPassenger = "INSERT INTO passengertrain (trainno, cars, paxcap, revno) VALUES (?, ?, ?, 1);";
                 ps = c.prepareStatement(insertPassenger);
-                ps.setString(1, trainVal[0]);
-                ps.setInt(2, Integer.parseInt(passengerVal[0]));
-                ps.setInt(3, Integer.parseInt(passengerVal[1]));
+                ps.setString(1, values[0]);
+                ps.setInt(2, Integer.parseInt(values[3]));
+                ps.setInt(3, Integer.parseInt(values[4]));
                 ps.execute();
             }
-            else if ("Service".equalsIgnoreCase(trainVal[2])) {
+            else if ("Service".equalsIgnoreCase(values[2])) {
                 final String insertService = "INSERT INTO servicetrain (trainno, dutytype, loadton, revno) VALUES (?, ?, ?, 1);";
                 ps = c.prepareStatement(insertService);
-                ps.setString(1, trainVal[0]);
-                ps.setString(2, serviceVal[0]);
-                ps.setDouble(3, Double.parseDouble(serviceVal[1]));
+                ps.setString(1, values[0]);
+                ps.setString(2, values[5]);
+                ps.setDouble(3, Double.parseDouble(values[6]));
                 ps.execute();
             }
         } catch (SQLException e) {
@@ -310,24 +509,21 @@ public class Member2 implements Application {
 
         while (true) {
             // Create menu
-            List<String> menu = new ArrayList<>();
-            for (int i = 0; i < labels.length; i++) menu.add(String.format("%-20s -> %s", labels[i], values[i] == null ? "None" : values[i]));
+            List<String> menu = Utils.createModifiableMenu(labels, values);
+            int choice = Utils.displayMenu("Modify every field, then choose 'Confirm' afterwards:", menu.toArray(new String[0]));
+            int num = menu.size() - 1;
 
-            int base = menu.size();
-            menu.add("Reset");
-            menu.add("Create Record");
-            menu.add("Return");
-
-            int choice = Utils.displayMenu("Modify every field, then choose 'Create Service Task' afterwards:", menu.toArray(new String[0]));
-
-            if (choice == base) Arrays.fill(values, null); // reset
-            else if (choice == base + 1) saveTaskRecord(values); // save
-            else if (choice == base + 2) return; // return
-            else handleCreateTaskInput(choice, values); // modify
+            if (choice == num) return; // return
+            else if (choice == num - 1) { // confirm
+                saveTaskRecord(values);
+                return;
+            }
+            else if (choice == num - 2) Arrays.fill(values, null); // reset
+            else handleTaskInput(choice, values); // modify
         }
     }
 
-    private void handleCreateTaskInput(int choice, String[] values) {
+    private void handleTaskInput(int choice, String[] values) {
         Scanner sc = new Scanner(System.in);
         String in;
         switch (choice) {
@@ -336,8 +532,8 @@ public class Member2 implements Application {
                     System.out.print("Enter unique Task Reference: ");
                     in = sc.nextLine().trim();
                     if (Utils.doesRecordExist("servicetask", "taskno", in))
-                        System.out.println(Utils.displayInputError("IDENTIFIER"));
-                    else if (Utils.isValidInput(in, "VARCHAR 16")) break;
+                        Utils.displayInputError("IDENTIFIER");
+                    else if (Utils.isValidInput(in, "VARCHAR(16)")) break;
                 } while (true);
                 values[0] = in.isEmpty() ? null : in;
             }
@@ -347,8 +543,8 @@ public class Member2 implements Application {
                     in = sc.nextLine().trim();
                     if (in.isEmpty()) break;
                     else if (!Utils.doesRecordExist("servicetrain", "trainno", in))
-                        System.out.println(Utils.displayInputError("NO_RECORD"));
-                    else if (Utils.isValidInput(in, "VARCHAR 12")) break;
+                        Utils.displayInputError("NO_RECORD");
+                    else if (Utils.isValidInput(in, "VARCHAR(12)")) break;
                 } while (true);
                 values[1] = in.isEmpty() ? null : in;
             }
@@ -370,7 +566,7 @@ public class Member2 implements Application {
                     System.out.print("Enter the duration of this task in hours: ");
                     in = sc.nextLine();
                     if (in.isEmpty()) break;
-                } while (!Utils.isValidInput(in, "DECIMAL UNSIGNED"));
+                } while (!Utils.isValidInput(in, "DECIMAL(8,2) UNSIGNED"));
                 values[4] = in.isEmpty() ? null : in;
             }
             case 5 -> { // details
@@ -378,7 +574,7 @@ public class Member2 implements Application {
                     System.out.print("Enter details for task: ");
                     in = sc.nextLine();
                     if (in.isEmpty()) break;
-                } while (!Utils.isValidInput(in, "VARCHAR 255"));
+                } while (!Utils.isValidInput(in, "VARCHAR(255)"));
                 values[5] = in.isEmpty() ? null : in;
             }
         }
@@ -403,28 +599,4 @@ public class Member2 implements Application {
             throw new RuntimeException(e);
         }
     }
-
-    private ResultSet retrieveTrainRecord(String trainRef) {
-        Connection c = Utils.getSqlConnection();
-        if (c == null) return null;
-        try {
-            String sql = "SELECT * FROM train WHERE trainno = " + trainRef;
-            PreparedStatement ps = c.prepareStatement(sql);
-            ResultSet res = ps.executeQuery();
-
-            // if there is no match just return
-            if (!res.next()) return res;
-
-            String type = res.getString("traintyp");
-            if ("Passenger".equalsIgnoreCase(type))
-                sql = "SELECT * FROM train t JOIN passengertrain p ON t.trainno = p.trainno WHERE t.trainno = " + trainRef;
-            else if ("Service".equalsIgnoreCase(type))
-                sql = "SELECT * FROM train t JOIN servicetrain s ON t.trainno = s.trainno WHERE t.trainno = " + trainRef;
-
-            ps = c.prepareStatement(sql);
-            return ps.executeQuery();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-}
+}*/
