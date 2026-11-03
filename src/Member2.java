@@ -163,7 +163,7 @@ public class Member2 implements Application {
 
                 if (choice == num) return; // return
                 else if (choice == num - 1) { // confirm
-                    saveTrainUpdate(values);
+                    saveTrainUpdate(values, !orig[2].equalsIgnoreCase(values[2]));
                     return;
                 }
                 else if (choice == num - 2) values = Arrays.copyOf(orig, n); // reset
@@ -176,7 +176,7 @@ public class Member2 implements Application {
         } catch (SQLException _) {}
     }
 
-    private void saveTrainUpdate(String[] values) {
+    private void saveTrainUpdate(String[] values, boolean hasChangedType) {
         try {
             Connection c = Utils.getSqlConnection();
             String sql = "UPDATE train SET label  = ?, traintyp = ?, active = ?, revno = revno + 1 WHERE trainno = ? AND revno = ?;";
@@ -193,9 +193,30 @@ public class Member2 implements Application {
 
             if ("Passenger".equalsIgnoreCase(values[2])) {
                 sql = "UPDATE passengertrain SET cars = ?, paxcap = ?, revno = revno + 1 WHERE trainno = ? AND revno = ?;";
-                ps = c.prepareStatement(sql);
+                insert = new Object[]{Integer.parseInt(values[3]), Integer.parseInt(values[4]), values[0], Integer.parseInt(values[9])};
+                types = new SQLType[]{JDBCType.INTEGER, JDBCType.INTEGER, JDBCType.VARCHAR, JDBCType.INTEGER};
+                ps = Utils.prepareStatement(c, sql, insert, types);
 
                 // update passenger db
+                rows = ps.executeUpdate();
+                if (rows == 0) Utils.displayDatabaseError("REVISION", null);
+
+                // delete other record if the type changed
+                if (hasChangedType)
+                    Utils.safeDeleteRecord("servicetrain", new String[] {"traincall", "servicetask"}, "trainno", values[0]);
+            } else if ("Service".equalsIgnoreCase(values[2])) {
+                sql = "UPDATE servicetrain SET dutytype = ?, loadton = ?, revno = revno + 1 WHERE trainno = ? AND revno = ?;";
+                insert = new Object[]{values[5], Double.parseDouble(values[6]), values[0], Integer.parseInt(values[9])};
+                types = new SQLType[]{JDBCType.VARCHAR, JDBCType.DECIMAL, JDBCType.VARCHAR, JDBCType.INTEGER};
+                ps = Utils.prepareStatement(c, sql, insert, types);
+
+                // update service db
+                rows = ps.executeUpdate();
+                if (rows == 0) Utils.displayDatabaseError("REVISION", null);
+
+                // delete other record if the type changed
+                if (hasChangedType)
+                    Utils.safeDeleteRecord("passengertrain", new String[] {"traincall"}, "trainno", values[0]);
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
