@@ -252,10 +252,20 @@ public class Utils {
             case "DELETE" -> "Cannot delete the record due to it being referenced in other table(s)";
             case "REFERENCE" -> "Cannot modify this field, this value is being referenced in other table(s)";
             case "PRECISION" -> "The decimal is to large/precise. Please enter a smaller/less precise number";
-            case "REVISION" -> "Please try again, the record you are trying to update is outdated";
             default -> "Error";
         };
         System.out.println(RED + "Invalid input: " + msg + RESET);
+    }
+
+    public static void displayDatabaseError(String type, Exception e) {
+        if (e != null) {
+            System.out.println(RED + "Database Error: " + e.toString() + RESET);
+        }
+        String msg = switch (type) {
+            case "REVISION" -> "Please try again, the record you are trying to update is outdated";
+            default -> "Error";
+        };
+        System.out.println(RED + "Database Error: " + msg + RESET);
     }
 
     public static boolean doesRecordExist(String table, String field, String value) {
