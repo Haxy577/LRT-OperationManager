@@ -5,6 +5,7 @@
  */
 public class Filter extends Field {
     private final String[] options;
+    private final String operator;
 
     /**
      * Creates a filter object with the specified values.
@@ -14,13 +15,19 @@ public class Filter extends Field {
      * @param type the data type of the field in the database
      * @param options the options the user can choose from. This can be null which indicates that the
      *                user has to manually input a value
+     * @param operator the logical operator to be used (e.g. LIKE, IS, =, !=, <, <=, >=, >=)
      */
-    public Filter(String fieldName, String label, String type, String[] options) {
+    public Filter(String fieldName, String label, String type, String[] options, String operator) {
         super(fieldName, label, type);
         this.options = options;
+        this.operator = operator;
     }
 
     public String[] getOptions() {
         return options;
+    }
+
+    public String getOperator() {
+        return operator;
     }
 }

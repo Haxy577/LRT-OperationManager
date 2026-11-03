@@ -27,6 +27,7 @@ import java.util.*;
  *
  * @author Richmond Salvador
  */
+/*
 public class Member2 implements Application {
 
     @Override
@@ -598,4 +599,4 @@ public class Member2 implements Application {
             throw new RuntimeException(e);
         }
     }
-}
+}*/
