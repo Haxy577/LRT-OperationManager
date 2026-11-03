@@ -190,40 +190,41 @@ public class Utils {
         }
     }
 
-    public static boolean isValidInput(String input, String expectedType) {
-        if (input == null || expectedType == null) return false;
-        expectedType = expectedType.trim().toUpperCase();
-
-        // Check if the number has to be unsigned
-        if (expectedType.contains("UNSIGNED") && input.contains("-")) {
-            System.out.println(displayInputError("SIGNED"));
-            return false;
-        }
-
-        // if its a varchar with a specified size
-        if (expectedType.contains("VARCHAR")) {
-            int len = Integer.parseInt(expectedType.substring(expectedType.indexOf(' ') + 1));
-            if (input.length() > len) {
-                System.out.println(displayInputError("LENGTH"));
-                return false;
-            }
-        }
-
-        // remove other words
-        int index = expectedType.indexOf(' ');
-        if (index != -1)  expectedType = expectedType.substring(0, index);
+    public static boolean isValidInput(String input, String type) {
+        if (input == null || type == null) return false;
+        type = type.trim().toUpperCase();
 
         try {
-            switch (expectedType) {
-                case "INT", "TINYINT", "SMALLINT", "INTEGER" -> Integer.parseInt(input);
-                case "DECIMAL" -> Double.parseDouble(input);
-                case "DATE" -> Date.valueOf(input);
-                case "DATETIME" -> Timestamp.valueOf(input);
-                default -> {return true;}
+            if (type.contains("INT")) Integer.parseInt(input);
+            else if (type.contains("DATETIME")) Timestamp.valueOf(input);
+            else if (type.contains("DATE")) Date.valueOf(input);
+            else if (type.contains("VARCHAR")) { // if its a varchar with a specified size
+                int len = Integer.parseInt(type.substring(type.indexOf('(') + 1));
+                if (input.length() > len) {
+                    System.out.println(displayInputError("LENGTH"));
+                    return false;
+                }
+            }
+            else if (type.contains("DECIMAL")) {
+                Double.parseDouble(input);
+
+                int real = Integer.parseInt(type.substring(type.indexOf('(' + 1), type.indexOf(',')));
+                int deci = Integer.parseInt(type.substring(type.indexOf(',' + 1), type.indexOf(')')));
+                String pattern = String.format("^(\\d{1,%d})?(\\.\\d{1,%d})?$", real, deci);
+                if (!input.matches(pattern)) {
+                    System.out.println(displayInputError("PRECISION"));
+                }
+            }
+            else if (type.contains("UNSIGNED") && input.contains("-")) { // Check if the number has to be unsigned
+                System.out.println(displayInputError("SIGNED"));
+                return false;
+            }
+            else {
+                return false;
             }
             return true;
         } catch (Exception e) {
-            System.out.println(displayInputError(expectedType));
+            System.out.println(displayInputError(type));
             return false;
         }
     }
@@ -239,7 +240,9 @@ public class Utils {
             case "SIGNED" -> "Please input a positive number";
             case "NO_RECORD" -> "Please input an identifier for an existing record in the database";
             case "LENGTH" -> "Please input a shorter text";
-            case "DELETE" -> "Cannot delete the record due to it being referenced in other tables";
+            case "DELETE" -> "Cannot delete the record due to it being referenced in other table(s)";
+            case "REFERENCE" -> "Cannot modify this field, this value is being referenced in other table(s)";
+            case "PRECISION" -> "The decimal is to large/precise. Please enter a smaller/less precise number";
             default -> "Error";
         };
         return RED + "Invalid input: " + msg + RESET;
