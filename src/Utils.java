@@ -37,19 +37,13 @@ public class Utils {
      *
      * @param prompt an instruction telling the user what to do or what the menu is about
      * @param options array of strings representing the choices to be displayed
-     * @param values the value associated with each option. Can be null, would use the options as the values instead
-     * @return the corresponding value of the chosen option
+     * @return the chosen option
      */
-    public static String displayMenu(String prompt, String[] options, String[] values) {
+    public static String displayMenu(String prompt, String[] options) {
         if (options == null || options.length < 1) {
             System.err.println("The provided options cannot be null nor empty");
             return null;
         }
-        if (values != null && options.length != values.length) {
-            System.err.println("The options and values must match each other");
-            return null;
-        }
-        String[] res = values == null ? options : values;
 
         System.out.println(prompt);
         int len = options.length;
@@ -62,7 +56,7 @@ public class Utils {
             if (input.matches("^[0-9]+$")) {
                 int choice = Integer.parseInt(input);
                 if (choice >= 1 && choice <= len) {
-                    return res[choice - 1];
+                    return options[choice - 1];
                 }
             }
             // if input is invalid then print error message
@@ -117,7 +111,7 @@ public class Utils {
         }
     }
 
-    public static List<String> createModifiableMenu(String[] labels, String[] values) {
+    public static List<String> createModifiableMenu(String[] labels, Object[] values) {
         if (labels == null || values == null || labels.length > values.length) return new ArrayList<>();
         List<String> menu = new ArrayList<>();
         for (int i = 0; i < labels.length; i++) {
@@ -134,35 +128,29 @@ public class Utils {
 
         while (true) {
             // Create the menu
-            List<String> menu = new ArrayList<>();
-            List<String> ref = new ArrayList<>();
-            for (Filter f : filters) {
-                String valDisplay = (f.getSelectedValue() != null) ? f.getSelectedValue() : "None";
-                menu.add(String.format("%-25s -> %s", f.getLabel(), valDisplay));
-                ref.add(f.getFieldName());
-            }
-            menu.add("Reset all filters");
-            ref.add("Reset");
-            menu.add("Execute search");
-            ref.add("Execute");
-            menu.add("Return");
-            ref.add("Return");
+            int size = filters.size();
+            String[] options = new String[size];
+            for (int i = 0; i < size; i++) options[i] = filters.get(i).getLabel();
 
-            int len = menu.size();
             String prompt = "Configure " + tableName + " search filters, then select 'Execute search':";
-            int choice = displayMenu(prompt, menu.toArray(new String[0]));
+            String choice = displayMenu(prompt, options);
 
-            // Return to previous menu
-            if (choice == len - 1) {
-                return null;
-            }
-            // Execute search
-            else if (choice == len - 2) {
-                return executeSqlSearch(baseSql, filters);
-            }
-            // Reset all filters
-            else if (choice == len - 3) {
-                for (Filter f : filters) f.setSelectedValue(null);
+            if ("Return".equals(choice)) return null;
+            else if ("Reset".equals(choice)) for (Filter f : filters) f.setValue(null);
+            else if ("Confirm".equals(choice)) return executeSqlSearch(baseSql, filters);
+            else {
+                Filter sel = null;
+                for (int i = 0; i < size && sel == null; i++) {
+                    Filter f = filters.get(i);
+                    if (f.getLabel().equalsIgnoreCase(choice)) sel = f;
+                }
+                if (sel == null) continue;
+
+                if (sel.getOptions() == null) {
+                    System.out.print("Enter " + sel.getLabel() + " filter value (Leave blank to reset): ");
+                    String in = null;
+                    while (!isValidInput(in, sel.getType())) sc.nextLine();
+                }
             }
             else {
                 Filter selected = filters.get(choice);
@@ -212,55 +200,62 @@ public class Utils {
         }
     }
 
-    public static boolean isValidInput(String input, String type) {
+    public static Object getInput(Scanner sc, String prompt, String type) {
+        Object val = null;
+        while (val == null) {
+            System.out.println(prompt);
+            String in = sc.nextLine().trim();
+            if (in.isEmpty()) break;
+            val = parseInput(in, type);
+        } return val;
+    }
+
+    public static Object parseInput(String input, String type) {
         if (input == null || type == null) return false;
         type = type.trim().toUpperCase();
         String error = "";
 
         try {
+            if (type.contains("UNSIGNED") && input.contains("-")) { // Check if the number has to be unsigned
+                displayInputError("SIGNED");
+                return null;
+            }
             if (type.contains("INT")) {
                 error = "INT";
-                Integer.parseInt(input);
+                return Integer.parseInt(input);
             }
             else if (type.contains("DATETIME")) {
                 error = "DATETIME";
-                Timestamp.valueOf(input);
+                return Timestamp.valueOf(input);
             }
             else if (type.contains("DATE")) {
                 error = "DATE";
-                Date.valueOf(input);
+                return Date.valueOf(input);
             }
             else if (type.contains("VARCHAR")) { // if its a varchar with a specified size
                 error = "VARCHAR";
                 int len = Integer.parseInt(type.substring(type.indexOf('(') + 1, type.indexOf(')')));
                 if (input.length() > len) {
                     displayInputError("LENGTH");
-                    return false;
+                    return null;
                 }
+                return input;
             }
             else if (type.contains("DECIMAL")) {
                 error = "DECIMAL";
-                Double.parseDouble(input);
-
                 int deci = Integer.parseInt(type.substring(type.indexOf(',') + 1, type.indexOf(')')));
                 int num = Integer.parseInt(type.substring(type.indexOf('(') + 1, type.indexOf(','))) - deci;
                 String pattern = String.format("^(\\d{1,%d})?(\\.\\d{1,%d})?$", num, deci);
                 if (!input.matches(pattern)) {
                     displayInputError("PRECISION");
-                    return false;
+                    return null;
                 }
+                return Double.parseDouble(input);
             }
-            else if (type.contains("UNSIGNED") && input.contains("-")) { // Check if the number has to be unsigned
-                displayInputError("SIGNED");
-                return false;
-            }
-            else {
-                return false;
-            }
-            return true;
+            else return null;
         } catch (Exception e) {
             displayInputError(error);
-            return false;
+            return null;
         }
     }
 
