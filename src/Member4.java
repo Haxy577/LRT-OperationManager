@@ -45,6 +45,7 @@ import java.util.Scanner;
 public class Member4 implements Application {
 
     private static Scanner sc = new Scanner(System.in);
+    private DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"); // DateTime format
 
     @Override
     public void menu() {
@@ -111,6 +112,7 @@ public class Member4 implements Application {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?);
                 """;
         try (PreparedStatement statement3 = conn.prepareStatement(query3)) {
+
             String stncode = getStationCode(conn, true); // Gets the user's choice for active stations
             if (stncode == null) { // No Active stations available
                 System.out.println("No Active Stations available.");
@@ -118,7 +120,6 @@ public class Member4 implements Application {
             }
             statement3.setString(1, stncode); // Setting the station code to a valid active station
 
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"); // DateTime format
             // SQL query for getting the number of records at a specific starting date and
             // time
             String query2 = """
@@ -128,47 +129,29 @@ public class Member4 implements Application {
                     AND         startat = ?;
                     """;
 
+            // Gets a unique time interval that the user wishes to add to the database
             isValid = false;
             LocalDateTime startTime = null;
             LocalDateTime endTime = null;
-            // Gets the time interval that the user wishes to add to the database
             while (!isValid) {
-                System.out.print("Enter Date and Time (yyyy-MM-dd HH:mm:ss): ");
-                String dateTime = sc.nextLine();
-
-                try {
-                    startTime = LocalDateTime.parse(dateTime, formatter);
-                    endTime = startTime.plusMinutes(15);
-                    if (startTime.getMinute() % 15 != 0 || startTime.getSecond() != 0) {
-                        System.out.println("Please enter a completed quarter-hour time");
-                        continue;
-                    }
-
-                    if (endTime.isAfter(LocalDateTime.now())) {
-                        System.out.println("Selected time interval has not yet finished.");
-                        continue;
-                    }
-
-                    try (PreparedStatement statement2 = conn.prepareStatement(query2)) {
-                        statement2.setString(1, stncode);
-                        statement2.setObject(2, startTime);
-                        try (ResultSet result2 = statement2.executeQuery()) {
-                            if (result2.next()) {
-                                if (result2.getInt("count") > 0) {
-                                    System.out.println("Date and time already existing");
-                                } else {
-                                    statement3.setObject(2, startTime); // Setting starting datetime to a unique
-                                                                        // starting time
-                                    statement3.setObject(3, endTime); // Setting ending datetime to derived datetime (15
-                                                                      // min interval)
-                                    isValid = true;
-                                }
+                startTime = getValidDateTime();
+                endTime = startTime.plusMinutes(15);
+                try (PreparedStatement statement2 = conn.prepareStatement(query2)) {
+                    statement2.setString(1, stncode);
+                    statement2.setObject(2, startTime);
+                    try (ResultSet result2 = statement2.executeQuery()) {
+                        if (result2.next()) {
+                            if (result2.getInt("count") > 0) {
+                                System.out.println("Date and time already existing");
+                            } else {
+                                statement3.setObject(2, startTime); // Setting starting datetime to a unique
+                                                                    // starting time
+                                statement3.setObject(3, endTime); // Setting ending datetime to derived datetime (15
+                                                                  // min interval)
+                                isValid = true;
                             }
                         }
                     }
-
-                } catch (java.time.format.DateTimeParseException e) {
-                    System.out.println("Invalid time format, please follow the assigned format.");
                 }
             }
             System.out.println("Creating Record for [" + stncode + "].");
@@ -223,29 +206,50 @@ public class Member4 implements Application {
         }
     }
 
-    private String getStationCode(Connection conn, boolean isActive) throws SQLException {
+    private LocalDateTime getValidDateTime() {
+        boolean isValid = false;
+        LocalDateTime userDateTime = null;
+        while (!isValid) {
+            System.out.print("Enter Date and Time (yyyy-MM-dd HH:mm:ss): ");
+            String dateTime = sc.nextLine();
+            try {
+                userDateTime = LocalDateTime.parse(dateTime, formatter);
+                if (userDateTime.getMinute() % 15 != 0 || userDateTime.getSecond() != 0) { // Checks for quarter time
+                    System.out.println("Please enter a completed quarter-hour time");
+                } else if (userDateTime.plusMinutes(15).isAfter(LocalDateTime.now())) { // Checks if the time exceeds
+                                                                                        // the
+                                                                                        // current time
+                    System.out.println("Selected time interval has not yet finished.");
+                } else {
+                    isValid = true;
+                }
+            } catch (java.time.format.DateTimeParseException e) {
+                System.out.println("Invalid time format, please follow the assigned format.");
+            }
+        }
+        return userDateTime;
+
+    }
+
+    private String getStationCode(Connection conn, Boolean activeFilter) throws SQLException {
         ArrayList<String> codes = new ArrayList<>();
         // SQL query for getting all the active stations
-        String query1 = """
-                SELECT stncode, stnname
-                FROM station
-                WHERE active = ?;
-                """;
+        String query = " SELECT stncode, stnname, active FROM station " +
+                (activeFilter == null ? "" : "WHERE        active = ? ") +
+                "ORDER BY stncode;";
         // Retrieves all the active stations with their code and names
-        try (PreparedStatement statement1 = conn.prepareStatement(query1)) {
-            if (isActive) {
-                statement1.setInt(1, 1); // sets the condition on the where clause to only get active stations
-            } else {
-                statement1.setInt(1, 0); // only gets inactive stations
+        try (PreparedStatement statement = conn.prepareStatement(query)) {
+            if (activeFilter != null) {
+                statement.setInt(1, activeFilter ? 1 : 0);
             }
-            try (ResultSet result1 = statement1.executeQuery()) {
+            try (ResultSet result = statement.executeQuery()) {
                 int counter = 0;
-                System.out.println("\nList of Active Stations: ");
+                System.out.println("\nList of Stations: ");
                 System.out.println("-----------------------");
-                while (result1.next()) {
-                    codes.add(result1.getString("stncode"));
+                while (result.next()) {
+                    codes.add(result.getString("stncode"));
                     System.out.println(String.format("[%d] %s - %s", ++counter, codes.get(counter - 1),
-                            result1.getString("stnname")));
+                            result.getString("stnname")));
                 }
                 System.out.println("-----------------------");
             }
