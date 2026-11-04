@@ -49,9 +49,9 @@ public class Member4 implements Application {
     @Override
     public void menu() {
         Connection conn = Utils.getSqlConnection();
-        if (conn == null){
+        if (conn == null) {
             System.out.println("Could not connect to the database.");
-            return; 
+            return;
         }
         String[] options = {
                 "Create Interval",
@@ -66,7 +66,7 @@ public class Member4 implements Application {
         Boolean isRunning = true;
 
         while (isRunning) {
-            int choice = Utils.displayMenu(prompt, options);
+            int choice = Utils.getIntChoice(prompt, options);
             switch (choice) {
                 case 0:
                     try {
@@ -227,7 +227,7 @@ public class Member4 implements Application {
                 }
             }
             String[] sourceOptions = sources.toArray(new String[0]);
-            int sourceChoice = Utils.displayMenu("Source Options: ", sourceOptions);
+            int sourceChoice = Utils.getIntChoice("Source Options: ", sourceOptions);
             String source = sourceOptions[sourceChoice];
 
             statement3.setString(6, source); // Setting source to either manual or counter

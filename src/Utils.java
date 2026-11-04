@@ -20,7 +20,8 @@ public class Utils {
     /**
      * Creates and returns a connection to the database.
      *
-     * @return a connection object that is successfully connected to the database. It returns null if the connection failed.
+     * @return a connection object that is successfully connected to the database.
+     *         It returns null if the connection failed.
      */
     public static Connection getSqlConnection() {
         try {
@@ -33,10 +34,12 @@ public class Utils {
     }
 
     /**
-     * Displays a menu display with the prompt and the choices the user can pick. Would also handle obtaining a valid input
+     * Displays a menu display with the prompt and the choices the user can pick.
+     * Would also handle obtaining a valid input
      * from the user. It would return the corresponding value of the chosen option.
      *
-     * @param prompt an instruction telling the user what to do or what the menu is about
+     * @param prompt  an instruction telling the user what to do or what the menu is
+     *                about
      * @param options array of strings representing the choices to be displayed
      * @return the chosen option
      */
@@ -48,7 +51,8 @@ public class Utils {
 
         System.out.println(prompt);
         int len = options.length;
-        for (int i = 0; i < len; i++) System.out.printf("  [%d] %s\n", i + 1, options[i]);
+        for (int i = 0; i < len; i++)
+            System.out.printf("  [%d] %s\n", i + 1, options[i]);
 
         while (true) {
             System.out.print("Please enter your choice: ");
@@ -65,14 +69,54 @@ public class Utils {
     }
 
     /**
-     * Displays the results of an SQL statement in the terminal in a formatted manner.
-     * It would first display the labels in the result, then every row in the result.
+     * Displays a menu display with the prompt and the choices the user can pick.
+     * Would also handle obtaining a valid input
+     * from the user. It would return the corresponding index of the chosen option.
+     *
+     * @param prompt  a instruction telling the user what to do or what is the menu
+     *                about
+     * @param options an array of strings representing every choice the user can
+     *                pick from
+     * @return the corresponding index in the choices array representing the choice
+     *         that the user made
+     */
+    public static int getIntChoice(String prompt, String[] options) {
+        if (options == null || options.length < 1)
+            System.err.println("The provided options cannot be null nor empty");
+
+        System.out.println(prompt);
+        int len = options.length;
+        for (int i = 0; i < len; i++)
+            System.out.printf("  [%d] %s\n", i + 1, options[i]);
+
+        Scanner sc = new Scanner(System.in);
+        while (true) {
+            System.out.print("Please enter your choice: ");
+            String input = sc.nextLine();
+            if (input.matches("^[0-9]+$")) {
+                int choice = Integer.parseInt(input);
+                if (choice >= 1 && choice <= len) {
+                    return choice - 1;
+                }
+            }
+
+            // if input is invalid then print error message
+            System.out.println(RED + "Please enter an integer between 1 to " + len + "!" + RESET);
+        }
+    }
+
+    /**
+     * Displays the results of an SQL statement in the terminal in a formatted
+     * manner.
+     * It would first display the labels in the result, then every row in the
+     * result.
      * It would print nothing if the specified result is null.
      *
      * @param result the result of the executed SQL statement
      */
     public static void displaySqlResult(ResultSet result) {
-        if (result == null) return;
+        if (result == null)
+            return;
         try {
             ResultSetMetaData data = result.getMetaData();
             final int fields = data.getColumnCount();
@@ -92,14 +136,16 @@ public class Utils {
             System.out.println(divider + "\n" + labels + "\n" + divider);
 
             // display resulting rows
-            while(result.next()) {
+            while (result.next()) {
                 StringBuffer row = new StringBuffer("|");
                 for (int i = 1; i <= fields; i++) {
                     String res = result.getString(i);
-                    if (res == null) res = "";
+                    if (res == null)
+                        res = "";
 
                     int width = sizes[i - 1];
-                    if (res.length() > width) res = res.substring(0, width - 3) + "..."; // if longer than the width, truncate the string
+                    if (res.length() > width)
+                        res = res.substring(0, width - 3) + "..."; // if longer than the width, truncate the string
 
                     row.append(res + " ".repeat(width - res.length() + padding) + "|");
                 }
@@ -112,7 +158,8 @@ public class Utils {
     }
 
     /**
-     * Returns a list of options containing the provided labels together with its value, a reset option,
+     * Returns a list of options containing the provided labels together with its
+     * value, a reset option,
      * a confirm option, and a return option
      *
      * @param labels the labels for each option
@@ -120,7 +167,8 @@ public class Utils {
      * @return a string array of options
      */
     public static String[] createModifiableMenu(String[] labels, Object[] values) {
-        if (labels == null || values == null || labels.length > values.length) return new String[0];
+        if (labels == null || values == null || labels.length > values.length)
+            return new String[0];
         List<String> menu = new ArrayList<>();
         for (int i = 0; i < labels.length; i++) {
             menu.add(String.format("%-25s -> %s", labels[i], values[i] == null ? "None" : values[i]));
@@ -132,11 +180,12 @@ public class Utils {
     }
 
     /**
-     * Searches the table's database for records that match the user's wanted filters
+     * Searches the table's database for records that match the user's wanted
+     * filters
      *
      * @param tableName the name of the table to be queried
-     * @param baseSql a select SQL statement containing the wanted fields
-     * @param filters the conditions the user can impose on the query
+     * @param baseSql   a select SQL statement containing the wanted fields
+     * @param filters   the conditions the user can impose on the query
      * @return the record(s) that match the user's query
      */
     public static ResultSet sqlSearch(String tableName, String baseSql, List<Filter> filters) {
@@ -144,21 +193,28 @@ public class Utils {
             // Create the menu
             int size = filters.size();
             String[] menu = new String[size];
-            for (int i = 0; i < size; i++) menu[i] = filters.get(i).getLabel();
+            for (int i = 0; i < size; i++)
+                menu[i] = filters.get(i).getLabel();
 
             String prompt = "Configure " + tableName + " search filters, then select 'Execute search':";
             String choice = displayMenu(prompt, menu);
 
-            if ("Return".equals(choice)) return null;
-            else if ("Reset".equals(choice)) for (Filter f : filters) f.setValue(null);
-            else if ("Confirm".equals(choice)) return executeSqlSearch(baseSql, filters);
+            if ("Return".equals(choice))
+                return null;
+            else if ("Reset".equals(choice))
+                for (Filter f : filters)
+                    f.setValue(null);
+            else if ("Confirm".equals(choice))
+                return executeSqlSearch(baseSql, filters);
             else {
                 Filter sel = null;
                 for (int i = 0; i < size && sel == null; i++) {
                     Filter f = filters.get(i);
-                    if (f.getLabel().equalsIgnoreCase(choice)) sel = f;
+                    if (f.getLabel().equalsIgnoreCase(choice))
+                        sel = f;
                 }
-                if (sel == null) continue;
+                if (sel == null)
+                    continue;
                 if (sel.getOptions() == null) {
                     prompt = "Enter " + sel.getLabel() + " filter value (Leave blank to reset): ";
                     sel.setValue(getInput(prompt, sel.getType()));
@@ -184,25 +240,31 @@ public class Utils {
         try {
             Connection c = getSqlConnection();
 
-            // Make sure there is a space between the baseSql to separate the conditions to be added
+            // Make sure there is a space between the baseSql to separate the conditions to
+            // be added
             StringBuilder query = new StringBuilder(baseSql);
             query.append(" ");
 
             // if there is no where clause
-            if (!"WHERE".contains(baseSql.toUpperCase())) query.append("WHERE 1=1 ");
+            if (!"WHERE".contains(baseSql.toUpperCase()))
+                query.append("WHERE 1=1 ");
 
             // Create condition blocks
             List<Object> values = new ArrayList<>();
             List<JDBCType> types = new ArrayList<>();
             for (Filter f : filters) {
-                if (f.getValue() == null) continue;
-                if ("LIKE".equalsIgnoreCase(f.getOperator())) query.append("AND ").append(f.getName()).append(" LIKE %?% ");
-                else query.append(String.format("AND %s %s ? ", f.getName(), f.getOperator()));
+                if (f.getValue() == null)
+                    continue;
+                if ("LIKE".equalsIgnoreCase(f.getOperator()))
+                    query.append("AND ").append(f.getName()).append(" LIKE %?% ");
+                else
+                    query.append(String.format("AND %s %s ? ", f.getName(), f.getOperator()));
                 values.add(f.getValue());
                 types.add(f.getSqlType());
             }
 
-            ResultSet res = prepareStatement(c, query.toString(), values.toArray(new Object[0]), types.toArray(new JDBCType[0])).executeQuery();
+            ResultSet res = prepareStatement(c, query.toString(), values.toArray(new Object[0]),
+                    types.toArray(new JDBCType[0])).executeQuery();
             return res;
         } catch (SQLException e) {
             displayDatabaseError(null, e);
@@ -211,11 +273,13 @@ public class Utils {
     }
 
     /**
-     * Gets the string input of a user, validates the input, then return its corresponding object value depending on the type.
-     * If the input were to be blank, then it is assumed that the wanted input would be null.
+     * Gets the string input of a user, validates the input, then return its
+     * corresponding object value depending on the type.
+     * If the input were to be blank, then it is assumed that the wanted input would
+     * be null.
      *
      * @param prompt instruction to user
-     * @param type SQL type
+     * @param type   SQL type
      * @return the converted string input
      */
     public static Object getInput(String prompt, String type) {
@@ -223,21 +287,26 @@ public class Utils {
         while (val == null) {
             System.out.print(prompt);
             String in = SCANNER.nextLine().trim();
-            if (in.isEmpty()) return null;
+            if (in.isEmpty())
+                return null;
             val = parseInput(in, type);
-        } return val;
+        }
+        return val;
     }
 
     /**
-     * Validates the passed input and converts the input to its type if it were to be valid.
-     * If the input is invalid then it would display an error message describing why its invalid.
+     * Validates the passed input and converts the input to its type if it were to
+     * be valid.
+     * If the input is invalid then it would display an error message describing why
+     * its invalid.
      *
      * @param input the input of the user
-     * @param type SQL type
+     * @param type  SQL type
      * @return the converted string input
      */
     public static Object parseInput(String input, String type) {
-        if (input == null || type == null) return null;
+        if (input == null || type == null)
+            return null;
         type = type.trim().toUpperCase();
         String error = "";
 
@@ -249,16 +318,13 @@ public class Utils {
             if (type.contains("INT")) {
                 error = "INT";
                 return Integer.parseInt(input);
-            }
-            else if (type.contains("DATETIME")) {
+            } else if (type.contains("DATETIME")) {
                 error = "DATETIME";
                 return Timestamp.valueOf(input);
-            }
-            else if (type.contains("DATE")) {
+            } else if (type.contains("DATE")) {
                 error = "DATE";
                 return Date.valueOf(input);
-            }
-            else if (type.contains("VARCHAR")) { // if its a varchar with a specified size
+            } else if (type.contains("VARCHAR")) { // if its a varchar with a specified size
                 error = "VARCHAR";
                 int len = Integer.parseInt(type.substring(type.indexOf('(') + 1, type.indexOf(')')));
                 if (input.length() > len) {
@@ -266,8 +332,7 @@ public class Utils {
                     return null;
                 }
                 return input;
-            }
-            else if (type.contains("DECIMAL")) {
+            } else if (type.contains("DECIMAL")) {
                 error = "DECIMAL";
                 int deci = Integer.parseInt(type.substring(type.indexOf(',') + 1, type.indexOf(')')));
                 int num = Integer.parseInt(type.substring(type.indexOf('(') + 1, type.indexOf(','))) - deci;
@@ -277,8 +342,8 @@ public class Utils {
                     return null;
                 }
                 return Double.parseDouble(input);
-            }
-            else return null;
+            } else
+                return null;
         } catch (Exception e) {
             displayInputError(error);
             return null;
@@ -312,7 +377,7 @@ public class Utils {
      * Display error messages regarding database errors.
      *
      * @param type type of error
-     * @param e the SQL exception
+     * @param e    the SQL exception
      */
     public static void displayDatabaseError(String type, Exception e) {
         if (e != null) {
@@ -327,7 +392,8 @@ public class Utils {
     }
 
     /**
-     * Checks if the specified field and value combination exists within the specified table
+     * Checks if the specified field and value combination exists within the
+     * specified table
      *
      * @param table the name of the table in the database
      * @param field the name of the field in the database
@@ -347,18 +413,21 @@ public class Utils {
     }
 
     /**
-     * Deletes a record in a table with the specified field and value combinations. Could also check if other tables depend on this record,
+     * Deletes a record in a table with the specified field and value combinations.
+     * Could also check if other tables depend on this record,
      * if it does then it does not delete the record.
      *
-     * @param table the table of the record to be deleted
-     * @param relatedTables checks these tables first if the value exists there. Can be null indicating to not check any tables
-     * @param field the name of the field in the table
-     * @param value the value of the record to be deleted
+     * @param table         the table of the record to be deleted
+     * @param relatedTables checks these tables first if the value exists there. Can
+     *                      be null indicating to not check any tables
+     * @param field         the name of the field in the table
+     * @param value         the value of the record to be deleted
      * @return true if the record was deleted, false otherwise
      */
     public static boolean safeDeleteRecord(String table, String[] relatedTables, String field, String value) {
         Connection c = getSqlConnection();
-        if (c == null) return false;
+        if (c == null)
+            return false;
 
         try {
             // get revision number
@@ -397,17 +466,20 @@ public class Utils {
     }
 
     /**
-     * Creates a prepared statement where it would automatically insert the specified values to the provided sql statement.
+     * Creates a prepared statement where it would automatically insert the
+     * specified values to the provided sql statement.
      *
-     * @param c connection to the database
-     * @param sql the sql statement with placeholders for every value
+     * @param c      connection to the database
+     * @param sql    the sql statement with placeholders for every value
      * @param values the values to be inserted to each placeholder
-     * @param types the sql type of each value
+     * @param types  the sql type of each value
      * @return the prepared statement with a sql statement ready to be run
      */
-    public static PreparedStatement prepareStatement(Connection c, String sql, Object[] values, JDBCType[] types) throws SQLException {
+    public static PreparedStatement prepareStatement(Connection c, String sql, Object[] values, JDBCType[] types)
+            throws SQLException {
         PreparedStatement ps = c.prepareStatement(sql);
-        if (values == null || types == null || values.length != types.length) return ps;
+        if (values == null || types == null || values.length != types.length)
+            return ps;
         for (int i = 1; i <= values.length; i++) {
             ps.setObject(i, values[i - 1], types[i - 1]);
         }
