@@ -5,6 +5,9 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Scanner;
 
 /**
@@ -47,6 +50,8 @@ public class Member4 implements Application {
     private static Scanner sc = new Scanner(System.in);
     private DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"); // DateTime format
 
+    private static final int MAX_COUNT = 1000000;
+
     @Override
     public void menu() {
         Connection conn = Utils.getSqlConnection();
@@ -77,7 +82,11 @@ public class Member4 implements Application {
                     }
                     break;
                 case 1:
-                    searchMenu();
+                    try {
+                        searchMenu(conn);
+                    } catch (SQLException e) {
+                        System.out.println("Database Error: " + e.getMessage());
+                    }
                     break;
                 case 2:
                     editMenu();
@@ -134,7 +143,7 @@ public class Member4 implements Application {
             LocalDateTime startTime = null;
             LocalDateTime endTime = null;
             while (!isValid) {
-                startTime = getValidDateTime();
+                startTime = getValidDateTime("Enter Date and Time (yyyy-MM-dd HH:mm:ss): ");
                 endTime = startTime.plusMinutes(15);
                 try (PreparedStatement statement2 = conn.prepareStatement(query2)) {
                     statement2.setString(1, stncode);
@@ -161,25 +170,16 @@ public class Member4 implements Application {
             System.out.println("-----------------------");
 
             // Gets the entry and exit counts
-            int entryCount = getNonNegativeInt("Enter Entry Count: ", "Invalid entry count, please try again.");
-            int exitCount = getNonNegativeInt("Enter Exit Count: ", "Invalid exit count, please try again.");
+            int entryCount = getIntInRange("Enter Entry Count: ", "Invalid entry count, please try again.", 0,
+                    MAX_COUNT);
+            int exitCount = getIntInRange("Enter Exit Count: ", "Invalid exit count, please try again.", 0,
+                    MAX_COUNT);
 
             statement3.setInt(4, entryCount); // Setting the entry count
             statement3.setInt(5, exitCount); // Setting the exit count
 
             // Gets the source for the interval
-            ArrayList<String> sources = new ArrayList<>();
-            String query4 = "SELECT source FROM refsource;";
-            try (PreparedStatement statement4 = conn.prepareStatement(query4)) {
-                try (ResultSet result4 = statement4.executeQuery()) {
-                    while (result4.next()) {
-                        sources.add(result4.getString("source"));
-                    }
-                }
-            }
-            String[] sourceOptions = sources.toArray(new String[0]);
-            int sourceChoice = Utils.getIntChoice("Source Options: ", sourceOptions);
-            String source = sourceOptions[sourceChoice];
+            String source = getSource(conn);
 
             statement3.setString(6, source); // Setting source to either manual or counter
 
@@ -206,25 +206,39 @@ public class Member4 implements Application {
         }
     }
 
-    private LocalDateTime getValidDateTime() {
+    private String getSource(Connection conn) throws SQLException {
+        ArrayList<String> sources = new ArrayList<>();
+        String query4 = "SELECT source FROM refsource;";
+        try (PreparedStatement statement4 = conn.prepareStatement(query4)) {
+            try (ResultSet result4 = statement4.executeQuery()) {
+                while (result4.next()) {
+                    sources.add(result4.getString("source"));
+                }
+            }
+        }
+        String[] sourceOptions = sources.toArray(new String[0]);
+        return Utils.displayMenu("Source Options: ", sourceOptions);
+    }
+
+    private LocalDateTime getValidDateTime(String prompt) {
         boolean isValid = false;
         LocalDateTime userDateTime = null;
         while (!isValid) {
-            System.out.print("Enter Date and Time (yyyy-MM-dd HH:mm:ss): ");
+            System.out.print(prompt);
             String dateTime = sc.nextLine();
             try {
                 userDateTime = LocalDateTime.parse(dateTime, formatter);
                 if (userDateTime.getMinute() % 15 != 0 || userDateTime.getSecond() != 0) { // Checks for quarter time
-                    System.out.println("Please enter a completed quarter-hour time");
+                    System.out.println(Utils.RED + "Please enter a completed quarter-hour time" + Utils.RESET);
                 } else if (userDateTime.plusMinutes(15).isAfter(LocalDateTime.now())) { // Checks if the time exceeds
                                                                                         // the
                                                                                         // current time
-                    System.out.println("Selected time interval has not yet finished.");
+                    System.out.println(Utils.RED + "Selected time interval has not yet finished." + Utils.RESET);
                 } else {
                     isValid = true;
                 }
             } catch (java.time.format.DateTimeParseException e) {
-                System.out.println("Invalid time format, please follow the assigned format.");
+                System.out.println(Utils.RED + "Invalid time format, please follow the assigned format." + Utils.RESET);
             }
         }
         return userDateTime;
@@ -248,8 +262,8 @@ public class Member4 implements Application {
                 System.out.println("-----------------------");
                 while (result.next()) {
                     codes.add(result.getString("stncode"));
-                    System.out.println(String.format("[%d] %s - %s", ++counter, codes.get(counter - 1),
-                            result.getString("stnname")));
+                    System.out.println(String.format("[%d] %-5s - %-13s - %s", ++counter, codes.get(counter - 1),
+                            result.getString("stnname"), (result.getInt("active") == 1 ? "Active" : "Not Active")));
                 }
                 System.out.println("-----------------------");
             }
@@ -259,25 +273,20 @@ public class Member4 implements Application {
             return null;
         }
         // Gets the user's chosen station
-        int index = 0;
-        while (index < 1 || index > codes.size()) {
-            index = getNonNegativeInt("Enter Choice: ", "Please choose a valid station.");
-            if (index < 1 || index > codes.size()) {
-                System.out.println("Please choose a valid station.");
-            }
-        }
+        int index = getIntInRange("Enter Choice: ", Utils.RED + "Please choose a valid station." + Utils.RESET, 1,
+                codes.size());
 
         return codes.get(index - 1);
     }
 
-    private int getNonNegativeInt(String prompt, String invalidPrompt) {
+    private int getIntInRange(String prompt, String invalidPrompt, int lowerBound, int upperBound) {
         Boolean isValid = false;
         int choice = -1;
         while (!isValid) {
             try {
                 System.out.print(prompt);
                 choice = Integer.parseInt(sc.nextLine());
-                if (choice < 0) {
+                if (choice < lowerBound || choice > upperBound) {
                     System.out.println(invalidPrompt);
                 } else {
                     isValid = true;
@@ -289,9 +298,71 @@ public class Member4 implements Application {
         return choice;
     }
 
-    private void searchMenu() {
-        System.out.println("This is the search menu!");
+    private void searchMenu(Connection conn) throws SQLException {
+        // System.out.println("This is the search menu!");
+        Map<String, Object> filters = new LinkedHashMap<>();
 
+        filters.put("Station Code", null);
+        filters.put("Starting Time Interval", null);
+        filters.put("Ending Time Interval", null);
+        filters.put("Source", null);
+
+        LocalDateTime start = null;
+        boolean isRunning = true;
+        while (isRunning) {
+            int counter = 1;
+            System.out.println("Filter Options: ");
+            System.out.println("---------------------------------------------------");
+            for (Map.Entry<String, Object> entry : filters.entrySet()) {
+                String filterName = entry.getKey();
+                String filterValue = entry.getValue() == null ? "[NONE]" : entry.getValue().toString();
+
+                System.out.println(String.format(" [%d] %-25s - %20s", counter++, filterName, filterValue.toString()));
+            }
+            System.out.println(" [5] Run Search");
+            System.out.println(" [6] Back to Main Menu");
+            System.out.println("---------------------------------------------------");
+            int choice = getIntInRange("Choice: ",
+                    Utils.RED + "Invalid input, please select from the list above." + Utils.RESET, 1, 6);
+            switch (choice) {
+                case 1: // Gets the station code
+                    filters.put("Station Code", getStationCode(conn, null));
+
+                    break;
+                case 2:
+                    start = getValidDateTime("Enter starting interval (yyyy-MM-dd HH:mm:ss) : ");
+                    filters.put("Starting Time Interval", start);
+
+                    break;
+                case 3:
+                    if (start == null) {
+                        System.out.println(Utils.RED + "Please select a starting interval first" + Utils.RESET);
+                        continue;
+                    }
+                    boolean isValid = false;
+                    while (!isValid) {
+                        LocalDateTime end = getValidDateTime("Enter ending interval (yyyy-MM-dd HH:mm:ss)   : ");
+                        if (end.isBefore(start)) {
+                            System.out.println(
+                                    Utils.RED + "Please enter a date time after the starting interval." + Utils.RESET);
+                        } else {
+                            filters.put("Ending Time Interval", end);
+                            isValid = true;
+                        }
+                    }
+                    break;
+                case 4:
+                    filters.put("Source", getSource(conn));
+                    break;
+                case 5:
+                    
+                    break;
+                case 6:
+                    isRunning = false;
+                    break;
+            }
+
+        }
     }
 
     private void editMenu() {

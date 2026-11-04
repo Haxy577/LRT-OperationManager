@@ -13,9 +13,9 @@ public class Utils {
     private static final String PASSWORD = "password";
     private static final Scanner SCANNER = new Scanner(System.in);
 
-    private static final String RESET = "\u001b[0m";
-    private static final String BOLD = "\u001b[1m";
-    private static final String RED = "\u001b[31m";
+    public static final String RESET = "\u001b[0m";
+    public static final String BOLD = "\u001b[1m";
+    public static final String RED = "\u001b[31m";
 
     /**
      * Creates and returns a connection to the database.
