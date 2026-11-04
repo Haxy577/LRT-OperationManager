@@ -105,49 +105,17 @@ public class Member4 implements Application {
 
     private void createMenu(Connection conn) throws SQLException {
         // SQL query to insert the new record into the database
+        boolean isValid;
         String query3 = """
                 INSERT INTO gateflow(stncode, startat, endat, entries, exits, source, notes, revno)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?);
                 """;
         try (PreparedStatement statement3 = conn.prepareStatement(query3)) {
-
-            ArrayList<String> codes = new ArrayList<>();
-            // SQL query for getting all the active stations
-            String query1 = """
-                    SELECT stncode, stnname
-                    FROM station
-                    WHERE active = 1;
-                    """;
-            // Retrieves all the active stations with their code and names
-            try (PreparedStatement statement1 = conn.prepareStatement(query1)) {
-                try (ResultSet result1 = statement1.executeQuery()) {
-                    int counter = 0;
-                    System.out.println("\nList of Active Stations: ");
-                    System.out.println("-----------------------");
-                    while (result1.next()) {
-                        codes.add(result1.getString("stncode"));
-                        System.out.println(String.format("[%d] %s - %s", ++counter, codes.get(counter - 1),
-                                result1.getString("stnname")));
-                    }
-                    System.out.println("-----------------------");
-                }
-            }
-
-            if (codes.isEmpty()) { // Checks if there are active stations, it returns early when there are no
-                                   // active stations
-                System.out.println("No active stations available.");
+            String stncode = getStationCode(conn, true); // Gets the user's choice for active stations
+            if (stncode == null) { // No Active stations available
+                System.out.println("No Active Stations available.");
                 return;
             }
-            // Gets the user's chosen station
-            int index = 0;
-            boolean isValid = false;
-            while (index < 1 || index > codes.size()) {
-                index = getNonNegativeInt("Enter Choice: ", "Please choose a valid station.");
-                if (index < 1 || index > codes.size()) {
-                    System.out.println("Please choose a valid station.");
-                }
-            }
-            String stncode = codes.get(index - 1);
             statement3.setString(1, stncode); // Setting the station code to a valid active station
 
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"); // DateTime format
@@ -255,6 +223,49 @@ public class Member4 implements Application {
         }
     }
 
+    private String getStationCode(Connection conn, boolean isActive) throws SQLException {
+        ArrayList<String> codes = new ArrayList<>();
+        // SQL query for getting all the active stations
+        String query1 = """
+                SELECT stncode, stnname
+                FROM station
+                WHERE active = ?;
+                """;
+        // Retrieves all the active stations with their code and names
+        try (PreparedStatement statement1 = conn.prepareStatement(query1)) {
+            if (isActive) {
+                statement1.setInt(1, 1); // sets the condition on the where clause to only get active stations
+            } else {
+                statement1.setInt(1, 0); // only gets inactive stations
+            }
+            try (ResultSet result1 = statement1.executeQuery()) {
+                int counter = 0;
+                System.out.println("\nList of Active Stations: ");
+                System.out.println("-----------------------");
+                while (result1.next()) {
+                    codes.add(result1.getString("stncode"));
+                    System.out.println(String.format("[%d] %s - %s", ++counter, codes.get(counter - 1),
+                            result1.getString("stnname")));
+                }
+                System.out.println("-----------------------");
+            }
+        }
+
+        if (codes.isEmpty()) { // Checks if there are available stations
+            return null;
+        }
+        // Gets the user's chosen station
+        int index = 0;
+        while (index < 1 || index > codes.size()) {
+            index = getNonNegativeInt("Enter Choice: ", "Please choose a valid station.");
+            if (index < 1 || index > codes.size()) {
+                System.out.println("Please choose a valid station.");
+            }
+        }
+
+        return codes.get(index - 1);
+    }
+
     private int getNonNegativeInt(String prompt, String invalidPrompt) {
         Boolean isValid = false;
         int choice = -1;
@@ -276,6 +287,7 @@ public class Member4 implements Application {
 
     private void searchMenu() {
         System.out.println("This is the search menu!");
+
     }
 
     private void editMenu() {
