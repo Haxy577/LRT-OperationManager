@@ -196,9 +196,14 @@ public class Utils {
             List<JDBCType> types = new ArrayList<>();
             for (Filter f : filters) {
                 if (f.getValue() == null) continue;
-                if ("LIKE".equalsIgnoreCase(f.getOperator())) query.append("AND ").append(f.getName()).append(" LIKE %?% ");
-                else query.append(String.format("AND %s %s ? ", f.getName(), f.getOperator()));
-                values.add(f.getValue());
+                if ("LIKE".equalsIgnoreCase(f.getOperator())) {
+                    query.append(String.format("AND %s LIKE ? ", f.getName()));
+                    values.add("%" + f.getValue() + "%");
+                }
+                else {
+                    query.append(String.format("AND %s %s ? ", f.getName(), f.getOperator()));
+                    values.add(f.getValue());
+                }
                 types.add(f.getSqlType());
             }
 
