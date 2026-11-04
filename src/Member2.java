@@ -27,7 +27,6 @@ import java.util.*;
  *
  * @author Richmond Salvador
  */
-/*
 public class Member2 implements Application {
 
     @Override
@@ -40,8 +39,8 @@ public class Member2 implements Application {
             };
             String prompt = "Choose which category you want to manage:";
             switch (Utils.displayMenu(prompt, options)) {
-                case 0 -> trainMenu();
-                case 1 -> taskMenu();
+                case "Manage Trains" -> trainMenu();
+                case "Manage Support Tasks" -> taskMenu();
                 default -> {return;}
             }
         }
@@ -50,16 +49,10 @@ public class Member2 implements Application {
     private void trainMenu() {
         while (true) {
             String prompt = "Which operation do you wish to do:";
-            String[] options = {
-                    "Create new train record",
-                    "Search the train database",
-                    "Edit an existing train record",
-                    "Delete an existing train record",
-                    "Go back"
-            };
+            String[] options = {"Create Train", "Search Train", "Edit Train", "Delete Train", "Return"};
             switch (Utils.displayMenu(prompt, options)) {
-                case 0 -> createTrain();
-                case 1 -> {
+                case "Create Train" -> createTrain();
+                case "Search Train" -> {
                     String sql = "SELECT t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, t.active " +
                                  "FROM train t LEFT JOIN passengertrain p ON t.trainno = p.trainno " +
                                  "LEFT JOIN servicetrain s ON t.trainno = s.trainno";
@@ -72,11 +65,9 @@ public class Member2 implements Application {
                     );
                     Utils.displaySqlResult(Utils.sqlSearch("Trains", sql, filters));
                 }
-                case 2 -> updateTrain();
-                case 3 -> deleteTrain();
-                default -> {
-                    return;
-                }
+                case "Edit Train" -> updateTrain();
+                case "Delete Train" -> deleteTrain();
+                default -> {return;}
             }
         }
     }
@@ -84,17 +75,10 @@ public class Member2 implements Application {
     private void taskMenu() {
         while (true) {
             String prompt = "Which operation do you wish to do:";
-            String[] options = {
-                    "Create new service task record",
-                    "Search the service task database",
-                    "Edit an existing service task record",
-                    "Delete an existing service task record",
-                    "Go back"
-            };
+            String[] options = {"Create Task", "Search Task", "Edit Task", "Delete Task", "Return"};
             switch (Utils.displayMenu(prompt, options)) {
-                case 0 -> createTask();
-                // Search
-                case 1 -> {
+                case "Create Task" -> createTask();
+                case "Search Task" -> {
                     String sql = "SELECT s.taskno, s.taskdate, s.tasktype, s.hours, t.trainno, t.dutytype, t.loadton, s.details " +
                             "FROM servicetask s JOIN servicetrain t ON s.trainno = t.trainno ";
                     List<Filter> filters = List.of(
@@ -105,11 +89,9 @@ public class Member2 implements Application {
                     );
                     Utils.displaySqlResult(Utils.sqlSearch("Trains", sql, filters));
                 }
-                case 2 -> updateTask();
-                case 3 -> deleteTask();
-                default -> {
-                    return;
-                }
+                case "Edit Task" -> updateTask();
+                case "Delete Task" -> deleteTask();
+                default -> {return;}
             }
         }
     }
@@ -599,4 +581,4 @@ public class Member2 implements Application {
             throw new RuntimeException(e);
         }
     }
-}*/
+}
