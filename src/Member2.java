@@ -54,7 +54,7 @@ public class Member2 implements Application {
                 case "Create Train" -> createTrain();
                 case "Search Train" -> searchTrain();
 //                case "Edit Train" -> updateTrain();
-//                case "Delete Train" -> deleteTrain();
+                case "Delete Train" -> deleteTrain();
                 default -> {return;}
             }
         }
@@ -68,7 +68,7 @@ public class Member2 implements Application {
                 case "Create Task" -> createTask();
                 case "Search Task" -> searchTask();
 //                case "Edit Task" -> updateTask();
-//                case "Delete Task" -> deleteTask();
+                case "Delete Task" -> deleteTask();
                 default -> {return;}
             }
         }
@@ -303,44 +303,55 @@ public class Member2 implements Application {
             Utils.displayInputError("NO_RECORD");
             return null;
         }
-    }
+    }*/
 
     private void deleteTrain() {
-        Scanner sc = new Scanner(System.in);
-        String type;
+        String prompt = "Input the Train Reference of the record you wish to delete (blank to return): ";
+        Field ref = new Field("trainno", "Train Reference", "VARCHAR(12)");
 
-        do {
-            System.out.print("Input the Train Reference of the record you wish to delete (blank to return): ");
-            String in = sc.nextLine().trim();
-            if (in.isEmpty()) return;
-            if (!Utils.isValidInput(in, "VARCHAR(16)")) continue;
+        try (Connection c = Utils.getSqlConnection()) {
+            c.setAutoCommit(false);
+            while (true) {
+                Object choice = Utils.getInput(prompt, ref.getType());
+                if (choice == null) return;
+                ref.setValue(choice);
 
-            // get the type of the train
-            if (Utils.doesRecordExist("passengertrain", "trainno", in)) {
-                if (Utils.safeDeleteRecord("passengertrain", new String[] {"traincall"}, "trainno", in))
-                    if (Utils.safeDeleteRecord("train", null, "trainno", in)) break;
+                boolean sub = false;
+
+                if (Utils.doesRecordExist(c, "passengertrain", ref)) {
+                    sub = Utils.safeDeleteRecord(c, "passengertrain", null, ref);
+                } else if (Utils.doesRecordExist(c, "servicetrain", ref)) {
+                    sub = Utils.safeDeleteRecord(c, "servicetrain", new String[] {"servicetask"}, ref);
+                } else sub = true;
+
+                boolean main = false;
+                if (sub) main = Utils.safeDeleteRecord(c, "train", new String[] {"traincall"}, ref); // only try to delete once child records are deleted
+
+                if (main && sub) {
+                    c.commit();
+                    return;
+                } else c.rollback();
             }
-            else if (Utils.doesRecordExist("servicetrain", "trainno", in)) {
-                if (Utils.safeDeleteRecord("servicetrain", new String[] {"servicetask"}, "trainno", in))
-                    if (Utils.safeDeleteRecord("train", null, "trainno", in)) break;
-            }
-            else {
-                if (Utils.safeDeleteRecord("train", new String[] {"traincall", "servicetask"}, "trainno", in)) break;
-            }
-        } while (true);
+        } catch (SQLException e) {Utils.displayDatabaseError(null, e);}
     }
 
     private void deleteTask() {
-        Scanner sc = new Scanner(System.in);
-        do {
-            System.out.print("Input the Task Reference of the record you wish to delete (blank to return): ");
-            String in = sc.nextLine().trim();
-            if (in.isEmpty()) return;
-            if (Utils.isValidInput(in, "VARCHAR(16)"))
-                if (Utils.safeDeleteRecord("servicetask", null, "taskno", in))
-                    break;
-        } while (true);
-    }*/
+        String prompt = "Input the Task Reference of the record you wish to delete (blank to return): ";
+        Field field = new Field("taskno", "Task Reference", "VARCHAR(16)");
+
+        try (Connection c = Utils.getSqlConnection()) {
+            c.setAutoCommit(false);
+            while (true) {
+                Object choice = Utils.getInput(prompt, field.getType());
+                if (choice == null) return;
+                field.setValue(choice);
+                if (Utils.safeDeleteRecord(c, "servicetask", null, field)) {
+                    c.commit();
+                    return;
+                } else c.rollback();
+            }
+        } catch (SQLException e) {Utils.displayDatabaseError(null, e);}
+    }
 
     private void createTrain() {
         Map<String, Field> fields = new LinkedHashMap<>();

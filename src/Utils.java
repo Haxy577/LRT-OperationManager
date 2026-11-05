@@ -390,7 +390,6 @@ public class Utils {
 
         try (PreparedStatement ps = prepareStatement(c, sql, new Field[]{field})) {
             // get revision number
-            ps.setObject(1, field.getValue(), field.getSqlType());
             ResultSet res = ps.executeQuery();
 
             // if there was no match
@@ -411,13 +410,25 @@ public class Utils {
             }
 
             // delete the record
-            sql = String.format("DELETE FROM %s WHERE %s = ? AND revno = ?;", table, field);
-            PreparedStatement del = c.prepareStatement(sql);
-            ps.setObject(1, field.getValue(), field.getSqlType());
-            ps.setInt(2, revno);
-            ps.executeUpdate();
-        } catch (SQLException e) {displayDatabaseError(null, e);}
-        return true;
+            sql = String.format("DELETE FROM %s WHERE %s = ? AND revno = ?;", table, field.getName());
+
+            try (PreparedStatement del = c.prepareStatement(sql)) {
+                del.setObject(1, field.getValue(), field.getSqlType());
+                del.setInt(2, revno);
+
+                if (del.executeUpdate() == 0) {
+                    displayDatabaseError("REVISION", null);
+                    return false;
+                }
+                return true;
+            } catch (SQLException e) {
+                displayDatabaseError(null, e);
+                return false;
+            }
+        } catch (SQLException e) {
+            displayDatabaseError(null, e);
+            return false;
+        }
     }
 
     /**
