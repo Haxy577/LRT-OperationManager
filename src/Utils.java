@@ -277,6 +277,8 @@ public class Utils {
                     if ((isUnsigned && val <= 65535) || (!isUnsigned && val >= -32768 && val <= 32767)) return (int) val;
                 }
                 else if ((isUnsigned && val <= 4294967295L) || (!isUnsigned && val >= -2147483648 && val <= 2147483647)) return Integer.parseInt(input);
+                displayInputError("OVERFLOW");
+                return null;
             }
             else if (type.contains("DATETIME")) {
                 error = "DATETIME";
@@ -311,7 +313,6 @@ public class Utils {
             displayInputError(error);
             return null;
         }
-        return null;
     }
 
     /**
@@ -381,19 +382,16 @@ public class Utils {
      *
      * @param table the table of the record to be deleted
      * @param relatedTables checks these tables first if the value exists there. Can be null indicating to not check any tables
-     * @param field the name of the field in the table
-     * @param value the value of the record to be deleted
+     * @param field the name, type, and value of the record to be deleted
      * @return true if the record was deleted, false otherwise
      */
-    /*public static boolean safeDeleteRecord(String table, String[] relatedTables, String field, String value) {
-        Connection c = getSqlConnection();
-        if (c == null) return false;
+    public static boolean safeDeleteRecord(Connection c, String table, String[] relatedTables, Field field) {
+        if (c == null || table == null || field == null) return false;
+        String sql = String.format("SELECT revno FROM %s WHERE %s = ?;", table, field.getName());
 
-        try {
+        try (PreparedStatement ps = prepareStatement(c, sql, new Field[]{field})) {
             // get revision number
-            String sql = String.format("SELECT revno FROM %s WHERE %s = ?;", table, field);
-            PreparedStatement ps = c.prepareStatement(sql);
-            ps.setString(1, value);
+            ps.setObject(1, field.getValue(), field.getSqlType());
             ResultSet res = ps.executeQuery();
 
             // if there was no match
@@ -406,7 +404,7 @@ public class Utils {
             // check if value exists in other tables
             if (relatedTables != null) {
                 for (String t : relatedTables) {
-                    if (doesRecordExist(c, t, field, value)) {
+                    if (doesRecordExist(c, t, field)) {
                         displayInputError("DELETE");
                         return false;
                     }
@@ -415,15 +413,13 @@ public class Utils {
 
             // delete the record
             sql = String.format("DELETE FROM %s WHERE %s = ? AND revno = ?;", table, field);
-            ps = c.prepareStatement(sql);
-            ps.setString(1, value);
+            PreparedStatement del = c.prepareStatement(sql);
+            ps.setObject(1, field.getValue(), field.getSqlType());
             ps.setInt(2, revno);
             ps.executeUpdate();
-        } catch (SQLException e) {
-            return false;
-        }
+        } catch (SQLException e) {displayDatabaseError(null, e);}
         return true;
-    }*/
+    }
 
     /**
      * Creates a prepared statement where it would automatically insert the
