@@ -145,17 +145,17 @@ public class Utils {
         while (true) {
             // Create the menu
             int size = filters.size();
-            String[] menu = new String[size];
-            for (int i = 0; i < size; i++) menu[i] = filters.get(i).getLabel();
+            List<String> menu = createModifiableMenu(new ArrayList<>(filters));
 
             String prompt = "Configure " + tableName + " search filters, then select 'Execute search':";
-            String choice = displayMenu(prompt, menu);
+            String choice = displayMenu(prompt, menu.toArray(new String[0]));
 
             if ("Return".equals(choice)) return null;
             else if ("Reset".equals(choice)) for (Filter f : filters) f.setValue(null);
             else if ("Confirm".equals(choice)) return executeSqlSearch(c, baseSql, filters);
             else {
                 Filter sel = null;
+                choice = choice.substring(0, choice.indexOf("->")).trim();
                 for (int i = 0; i < size && sel == null; i++) {
                     Filter f = filters.get(i);
                     if (f.getLabel().equalsIgnoreCase(choice)) sel = f;
@@ -192,25 +192,24 @@ public class Utils {
             query.append(" ");
 
             // if there is no where clause
-            if (!"WHERE".contains(baseSql.toUpperCase())) query.append("WHERE 1=1 ");
+            if (!baseSql.toUpperCase().contains("WHERE")) query.append(" WHERE 1=1 ");
 
             // Create condition blocks
-            List<Object> values = new ArrayList<>();
-            List<JDBCType> types = new ArrayList<>();
+            List<Field> values = new ArrayList<>();
             for (Filter f : filters) {
                 if (f.getValue() == null) continue;
                 if ("LIKE".equalsIgnoreCase(f.getOperator())) {
                     query.append(String.format("AND %s LIKE ? ", f.getName()));
-                    values.add("%" + f.getValue() + "%");
+                    f.setValue("%" + f.getValue() + "%");
+                    values.add(f);
                 }
                 else {
                     query.append(String.format("AND %s %s ? ", f.getName(), f.getOperator()));
-                    values.add(f.getValue());
+                    values.add(f);
                 }
-                types.add(f.getSqlType());
             }
 
-            PreparedStatement ps = prepareStatement(c, query.toString(), filters.toArray(new Field[0]));
+            PreparedStatement ps = prepareStatement(c, query.toString(), values.toArray(new Field[0]));
             return ps.executeQuery();
         } catch (SQLException e) {
             displayDatabaseError(null, e);
@@ -438,7 +437,8 @@ public class Utils {
                 Field f = fields[i - 1];
                 Object val = f.getValue();
                 SQLType typ = f.getSqlType();
-                ps.setObject(i, val, typ);
+                if (typ == null) ps.setObject(i, val);
+                else ps.setObject(i, val, typ);
             }
             return ps;
         } catch (SQLException e) {displayDatabaseError(null, e);}
