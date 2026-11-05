@@ -101,15 +101,14 @@ public class Member2 implements Application {
     }
 
     private void updateTrain() {
-        Scanner sc = new Scanner(System.in);
+        String prompt = "Input the Train Reference of the record to be edited (blank to return): ";
         String rec;
 
         // get the record to be updated
         do {
-            System.out.print("Input the Train Reference of the record to be edited (blank to return): ");
-            rec = sc.nextLine().trim();
-            if (rec.isEmpty()) return;
-            if (!Utils.isValidInput(rec, "VARCHAR(12)")) continue;
+            Object in = Utils.getInput(prompt, "VARCHAR(12)");
+            if (in == null) return;
+            rec = in.toString();
             if (Utils.doesRecordExist("train", "trainno", rec)) break;
             Utils.displayInputError("NO_RECORD");
         } while (true);
@@ -144,7 +143,7 @@ public class Member2 implements Application {
                     menu.remove(index);
                 }
 
-                int choice = Utils.displayMenu("Modify fields to be updated, then choose 'Confirm' afterwards:", menu.toArray(new String[0]));
+                String choice = Utils.displayMenu("Modify fields to be updated, then choose 'Confirm' afterwards:", menu.toArray(new String[0]));
                 int num = menu.size() - 1;
 
                 if (choice == num) return; // return
@@ -489,100 +488,45 @@ public class Member2 implements Application {
         }
     }
 
-    private void createTask() {
-        String[] labels = {"Task Reference", "Train Reference", "Task Date", "Task Type", "Duration in Hours", "Details"};
-        String[] values = new String[6];
+    private void createTask(Connection c) {
+        final String sql = "INSERT INTO servicetask (taskno, trainno, taskdate, tasktype, hours, details, revno) VALUES (?, ?, ?, ?, ?, ?, 1);";
+        Map<String, Field> fields = new LinkedHashMap<>();
+        fields.put("Task Reference", new Field("taskno", "Task Reference", "VARCHAR(16)"));
+        fields.put("Train Reference", new Field("trainno", "Train Reference", "VARCHAR(12)"));
+        fields.put("Task Date", new Field("taskdate", "Task Date", "DATE"));
+        fields.put("Task Type", new Field("tasktype", "Task Type", "VARCHAR(15)"));
+        fields.put("Duration in Hours", new Field("hours", "Duration in Hours", "DECIMAL(8,2) UNSIGNED"));
+        fields.put("Details", new Field("details", "Details", "VARCHAR(255)"));
 
         while (true) {
-            // Create menu
-            List<String> menu = Utils.createModifiableMenu(labels, values);
-            int choice = Utils.displayMenu("Modify every field, then choose 'Confirm' afterwards:", menu.toArray(new String[0]));
-            int num = menu.size() - 1;
+            List<String> menu = Utils.createModifiableMenu(new ArrayList<>(fields.values()));
+            String prompt = "Modify every field, then choose 'Confirm' afterwards:";
+            String choice = Utils.displayMenu(prompt, menu.toArray(new String[0]));
 
-            if (choice == num) return; // return
-            else if (choice == num - 1) { // confirm
-                saveTaskRecord(values);
-                return;
+            switch (choice) {
+                case "Return" -> {return;}
+                case "Reset" -> {for (Field f : fields.values()) f.setValue(null);}
+                case "Confirm" -> {
+                    boolean res = Utils.modifyTable(c, sql, new ArrayList<>(fields.values()));
+                    if (res) return;
+                }
+                default -> {
+                    String key = choice.substring(0, choice.indexOf("->")).trim();
+                    handleTaskInput(fields.get(key));
+                }
             }
-            else if (choice == num - 2) Arrays.fill(values, null); // reset
-            else handleTaskInput(choice, values); // modify
         }
     }
 
-    private void handleTaskInput(int choice, String[] values) {
-        Scanner sc = new Scanner(System.in);
-        String in;
-        switch (choice) {
-            case 0 -> { // task reference
-                do {
-                    System.out.print("Enter unique Task Reference: ");
-                    in = sc.nextLine().trim();
-                    if (Utils.doesRecordExist("servicetask", "taskno", in))
-                        Utils.displayInputError("IDENTIFIER");
-                    else if (Utils.isValidInput(in, "VARCHAR(16)")) break;
-                } while (true);
-                values[0] = in.isEmpty() ? null : in;
-            }
-            case 1 -> { // train reference
-                do {
-                    System.out.print("Enter Service Train Reference: ");
-                    in = sc.nextLine().trim();
-                    if (in.isEmpty()) break;
-                    else if (!Utils.doesRecordExist("servicetrain", "trainno", in))
-                        Utils.displayInputError("NO_RECORD");
-                    else if (Utils.isValidInput(in, "VARCHAR(12)")) break;
-                } while (true);
-                values[1] = in.isEmpty() ? null : in;
-            }
-            case 2 -> { // task date
-                do {
-                    System.out.print("Enter the date of this task (YYYY-MM-DD): ");
-                    in = sc.nextLine();
-                    if (in.isEmpty()) break;
-                } while (!Utils.isValidInput(in, "DATE"));
-                values[2] = in.isEmpty() ? null : in;
-            }
-            case 3 -> { // task type
+    private void handleTaskInput(Field field) {
+        switch (field.getName()) {
+            case "taskno", "trainno", "taskdate", "hours", "details" -> Utils.updateValue(field);
+            case "tasktype" -> {
                 String[] duties = {"Inspection", "Maintenance", "Recovery", "Reset"};
-                int sel = Utils.displayMenu("Choose the type of this task: ", duties);
-                values[3] = sel == duties.length - 1 ? null : duties[sel];
+                String sel = Utils.displayMenu("Choose the type of this task: ", duties);
+                if (sel == null) field.setValue(null);
+                else field.setValue(Utils.parseInput(sel, field.getType()));
             }
-            case 4 -> { // duration
-                do {
-                    System.out.print("Enter the duration of this task in hours: ");
-                    in = sc.nextLine();
-                    if (in.isEmpty()) break;
-                } while (!Utils.isValidInput(in, "DECIMAL(8,2) UNSIGNED"));
-                values[4] = in.isEmpty() ? null : in;
-            }
-            case 5 -> { // details
-                do {
-                    System.out.print("Enter details for task: ");
-                    in = sc.nextLine();
-                    if (in.isEmpty()) break;
-                } while (!Utils.isValidInput(in, "VARCHAR(255)"));
-                values[5] = in.isEmpty() ? null : in;
-            }
-        }
-    }
-
-    private void saveTaskRecord(String[] values) {
-        try {
-            Connection c = Utils.getSqlConnection();
-            if (c == null) return;
-
-            String sql = "INSERT INTO servicetask (taskno, trainno, taskdate, tasktype, hours, details, revno) VALUES (?, ?, ?, ?, ?, ?, 1);";
-            PreparedStatement ps = c.prepareStatement(sql);
-
-            ps.setString(1, values[0]);
-            ps.setString(2, values[1]);
-            ps.setDate(3, Date.valueOf(values[2]));
-            ps.setString(4, values[3]);
-            ps.setDouble(5, Double.parseDouble(values[4]));
-            ps.setString(6, values[5]);
-            ps.execute();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
         }
     }
 }

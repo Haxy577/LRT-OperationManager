@@ -433,7 +433,8 @@ public class Utils {
      */
     public static PreparedStatement prepareStatement(Connection c, String sql, Field[] fields) {
         if (c == null || sql == null || fields == null) return null;
-        try (PreparedStatement ps = c.prepareStatement(sql)) {
+        try {
+            PreparedStatement ps = c.prepareStatement(sql);
             for (int i = 1; i <= fields.length; i++) {
                 Field f = fields[i - 1];
                 Object val = f.getValue();
