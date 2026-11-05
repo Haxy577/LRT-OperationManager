@@ -42,7 +42,7 @@ import java.util.Scanner;
  *
  * @author
  */
-public class Member4 implements Application {
+/*public class Member4 implements Application {
 
     private static Scanner sc = new Scanner(System.in);
 
@@ -265,4 +265,4 @@ public class Member4 implements Application {
         System.out.println("This is the report menu!");
     }
 
-}
+}*/

@@ -31,6 +31,7 @@ public class Member2 implements Application {
 
     @Override
     public void menu() {
+        Connection c = Utils.getSqlConnection();
         while (true) {
             String[] options = {
                     "Manage Trains",
@@ -40,7 +41,7 @@ public class Member2 implements Application {
             String prompt = "Choose which category you want to manage:";
             switch (Utils.displayMenu(prompt, options)) {
                 case "Manage Trains" -> trainMenu();
-                case "Manage Support Tasks" -> taskMenu();
+                case "Manage Support Tasks" -> taskMenu(c);
                 default -> {return;}
             }
         }
@@ -51,29 +52,29 @@ public class Member2 implements Application {
             String prompt = "Which operation do you wish to do:";
             String[] options = {"Create Train", "Search Train", "Edit Train", "Delete Train", "Return"};
             switch (Utils.displayMenu(prompt, options)) {
-                case "Create Train" -> createTrain();
-                case "Search Train" -> searchTrain();
-                case "Edit Train" -> updateTrain();
-                case "Delete Train" -> deleteTrain();
+//                case "Create Train" -> createTrain();
+//                case "Search Train" -> searchTrain();
+//                case "Edit Train" -> updateTrain();
+//                case "Delete Train" -> deleteTrain();
                 default -> {return;}
             }
         }
     }
 
-    private void taskMenu() {
+    private void taskMenu(Connection c) {
         while (true) {
             String prompt = "Which operation do you wish to do:";
             String[] options = {"Create Task", "Search Task", "Edit Task", "Delete Task", "Return"};
             switch (Utils.displayMenu(prompt, options)) {
-                case "Create Task" -> createTask();
-                case "Search Task" -> searchTask();
-                case "Edit Task" -> updateTask();
-                case "Delete Task" -> deleteTask();
+                case "Create Task" -> createTask(c);
+//                case "Search Task" -> searchTask();
+//                case "Edit Task" -> updateTask();
+//                case "Delete Task" -> deleteTask();
                 default -> {return;}
             }
         }
     }
-
+/*
     private void searchTrain() {
         String sql = "SELECT t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, t.active " +
                 "FROM train t LEFT JOIN passengertrain p ON t.trainno = p.trainno WHERE 1=1 " +
@@ -339,6 +340,7 @@ public class Member2 implements Application {
     }
 
     private void createTrain() {
+        Map<String, Field> fields = new LinkedHashMap<>();
         String[] values = new String[7];
         String[] labels = {"Train Reference", "Train Label", "Train Type", "Number of Cars", "Passenger Capacity", "Principal Duty", "Payload Capacity"};
 
@@ -486,7 +488,7 @@ public class Member2 implements Application {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
-    }
+    }*/
 
     private void createTask(Connection c) {
         final String sql = "INSERT INTO servicetask (taskno, trainno, taskdate, tasktype, hours, details, revno) VALUES (?, ?, ?, ?, ?, ?, 1);";
@@ -512,15 +514,31 @@ public class Member2 implements Application {
                 }
                 default -> {
                     String key = choice.substring(0, choice.indexOf("->")).trim();
-                    handleTaskInput(fields.get(key));
+                    handleTaskInput(c, fields.get(key));
                 }
             }
         }
     }
 
-    private void handleTaskInput(Field field) {
+    private void handleTaskInput(Connection c, Field field) {
         switch (field.getName()) {
-            case "taskno", "trainno", "taskdate", "hours", "details" -> Utils.updateValue(field);
+            case "taskno" -> {
+                while (true) {
+                    Utils.updateValue(field);
+                    if (field.getValue() == null) return;
+                    if (!Utils.doesRecordExist(c, "servicetask", field)) break;
+                    Utils.displayInputError("IDENTIFIER");
+                }
+            }
+            case "trainno" -> {
+                while (true) {
+                    Utils.updateValue(field);
+                    if (field.getValue() == null) return;
+                    if (Utils.doesRecordExist(c, "servicetrain", field)) break;
+                    Utils.displayInputError("NO_RECORD");
+                }
+            }
+            case "taskdate", "hours", "details" -> Utils.updateValue(field);
             case "tasktype" -> {
                 String[] duties = {"Inspection", "Maintenance", "Recovery", "Reset"};
                 String sel = Utils.displayMenu("Choose the type of this task: ", duties);

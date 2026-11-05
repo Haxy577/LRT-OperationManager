@@ -243,15 +243,8 @@ public class Utils {
      * @param field the field to be updated/modified
      */
     public static void updateValue(Field field) {
-        while (true) {
-            System.out.printf("Enter %s: ", field.getLabel());
-            String in = SCANNER.nextLine().trim();
-            if (in.isEmpty()) {
-                field.setValue(null);
-                break;
-            }
-            field.setValue(parseInput(in, field.getType()));
-        }
+        String prompt = String.format("Enter %s: ", field.getLabel());
+        field.setValue(getInput(prompt, field.getType()));
     }
 
     /**
@@ -355,17 +348,16 @@ public class Utils {
     /**
      * Checks if the specified field and value combination exists within the specified table
      *
+     * @param c connection to database
      * @param table the name of the table in the database
-     * @param field the name of the field in the database
-     * @param value the value to look for
+     * @param field the field in the database and the value to look for inside it
      * @return true if the record exists, false otherwise
      */
-    public static boolean doesRecordExist(String table, String field, String value) {
-        Connection c = getSqlConnection();
-        String sql = "SELECT 1 FROM " + table + " WHERE " + field + " = ?;";
-        try {
-            PreparedStatement ps = c.prepareStatement(sql);
-            ps.setString(1, value);
+    public static boolean doesRecordExist(Connection c, String table, Field field) {
+        if (c == null || table == null || field == null) return false;
+        String sql = String.format("SELECT 1 FROM %s WHERE %s = ?;", table, field.getName());
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setObject(1, field.getValue(), field.getSqlType());
             return ps.executeQuery().next();
         } catch (SQLException e) {
             return false;
@@ -382,7 +374,7 @@ public class Utils {
      * @param value the value of the record to be deleted
      * @return true if the record was deleted, false otherwise
      */
-    public static boolean safeDeleteRecord(String table, String[] relatedTables, String field, String value) {
+    /*public static boolean safeDeleteRecord(String table, String[] relatedTables, String field, String value) {
         Connection c = getSqlConnection();
         if (c == null) return false;
 
@@ -403,7 +395,7 @@ public class Utils {
             // check if value exists in other tables
             if (relatedTables != null) {
                 for (String t : relatedTables) {
-                    if (doesRecordExist(t, field, value)) {
+                    if (doesRecordExist(c, t, field, value)) {
                         displayInputError("DELETE");
                         return false;
                     }
@@ -420,7 +412,7 @@ public class Utils {
             return false;
         }
         return true;
-    }
+    }*/
 
     /**
      * Creates a prepared statement where it would automatically insert the
