@@ -117,10 +117,10 @@ public class Utils {
      *
      * @param labels the labels for each option
      * @param values the value for each label
-     * @return a string array of options
+     * @return a list of options
      */
-    public static String[] createModifiableMenu(String[] labels, Object[] values) {
-        if (labels == null || values == null || labels.length > values.length) return new String[0];
+    public static List<String> createModifiableMenu(String[] labels, Object[] values) {
+        if (labels == null || values == null || labels.length > values.length) return new ArrayList<>();
         List<String> menu = new ArrayList<>();
         for (int i = 0; i < labels.length; i++) {
             menu.add(String.format("%-25s -> %s", labels[i], values[i] == null ? "None" : values[i]));
@@ -128,7 +128,7 @@ public class Utils {
         menu.add("Reset");
         menu.add("Confirm");
         menu.add("Return");
-        return menu.toArray(new String[0]);
+        return menu;
     }
 
     /**
@@ -231,6 +231,24 @@ public class Utils {
             if (in.isEmpty()) return null;
             val = parseInput(in, type);
         } return val;
+    }
+
+    /**
+     * Gets the user input, validates it, then updates the value of the field based on the input of the user.
+     * If the input is blank then it would set its value to null.
+     *
+     * @param field the field to be updated/modified
+     */
+    public static void updateValue(Field field) {
+        while (true) {
+            System.out.printf("Enter %s: ", field.getLabel());
+            String in = SCANNER.next().trim();
+            if (in.isEmpty()) {
+                field.setValue(null);
+                break;
+            }
+            field.setValue(parseInput(in, field.getType()));
+        }
     }
 
     /**
