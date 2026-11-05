@@ -112,18 +112,19 @@ public class Utils {
     }
 
     /**
-     * Returns a list of options containing the provided labels together with its value, a reset option,
+     * Returns a list of options containing the labels and value of each field, a reset option,
      * a confirm option, and a return option
      *
-     * @param labels the labels for each option
-     * @param values the value for each label
+     * @param fields the list of fields to be displayed
      * @return a list of options
      */
-    public static List<String> createModifiableMenu(String[] labels, Object[] values) {
-        if (labels == null || values == null || labels.length > values.length) return new ArrayList<>();
+    public static List<String> createModifiableMenu(List<Field> fields) {
+        if (fields == null) return new ArrayList<>();
         List<String> menu = new ArrayList<>();
-        for (int i = 0; i < labels.length; i++) {
-            menu.add(String.format("%-25s -> %s", labels[i], values[i] == null ? "None" : values[i]));
+        for (Field f : fields) {
+            String label = f.getLabel();
+            Object val = f.getValue();
+            menu.add(String.format("%-25s -> %s", label, val == null ? "None" : val.toString()));
         }
         menu.add("Reset");
         menu.add("Confirm");
@@ -242,7 +243,7 @@ public class Utils {
     public static void updateValue(Field field) {
         while (true) {
             System.out.printf("Enter %s: ", field.getLabel());
-            String in = SCANNER.next().trim();
+            String in = SCANNER.nextLine().trim();
             if (in.isEmpty()) {
                 field.setValue(null);
                 break;
@@ -343,7 +344,7 @@ public class Utils {
             return;
         }
         String msg = switch (type) {
-            case "REVISION" -> "Please try again, the record you are trying to update is outdated";
+            case "REVISION" -> "Please try again, the record/table you are trying to update is outdated";
             default -> "Error";
         };
         System.out.println(RED + "Database Error: " + msg + RESET);
@@ -428,12 +429,49 @@ public class Utils {
      * @param types the sql type of each value
      * @return the prepared statement with a sql statement ready to be run
      */
-    public static PreparedStatement prepareStatement(Connection c, String sql, Object[] values, JDBCType[] types) throws SQLException {
+    public static PreparedStatement prepareStatement(Connection c, String sql, List<Field> fields) throws SQLException {
         PreparedStatement ps = c.prepareStatement(sql);
+        if (fields == null) return ps;
+        for (Field f : fields) {
+
+        }
         if (values == null || types == null || values.length != types.length) return ps;
         for (int i = 1; i <= values.length; i++) {
             ps.setObject(i, values[i - 1], types[i - 1]);
         }
         return ps;
+    }
+
+    /**
+     * Modifies the table stated on the SQL statement. The provided SQL statements must have the same amount of
+     * placeholders as there are fields. The SQL statement should also be designed wherein it would follow the order
+     * defined in the field list. If not then it could lead to unintended behaviour.
+     *
+     * @param c connection to the database
+     * @param sql the SQL statement with placeholders to run
+     * @param fields the field values to be added per placeholder
+     * @return true if the table was updated, false otherwise
+     */
+    public static boolean modifyTable(Connection c, String sql, List<Field> fields) {
+        if (c == null || sql == null || fields == null) return false;
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            for (int i = 1; i <= fields.size(); i++) {
+                Field f = fields.get(i - 1);
+                Object val = f.getValue();
+                SQLType typ = f.getSqlType();
+
+                if (typ != null) ps.setObject(i, val, typ);
+                else ps.setObject(i, val);
+            }
+
+            if (ps.executeUpdate() == 0) {
+                displayDatabaseError("REVISION", null);
+                return false;
+            }
+            return true;
+        } catch (Exception e) {
+            displayDatabaseError(null, e);
+            return false;
+        }
     }
 }
