@@ -40,11 +40,15 @@ public class Field {
     }
 
     private JDBCType getJdbcType(String type) {
-        if (type.contains("INT")) return JDBCType.INTEGER;
-        else if (type.contains("DECIMAL")) return JDBCType.DECIMAL;
-        else if (type.contains("VARCHAR")) return JDBCType.VARCHAR;
-        else if (type.contains("DATETIME")) return JDBCType.TIMESTAMP;
-        else if (type.contains("DATE")) return JDBCType.DATE;
-        else return null;
+        return switch (type.toUpperCase().trim()) {
+            case "INT" -> JDBCType.INTEGER;
+            case "SMALLINT" -> JDBCType.SMALLINT;
+            case "TINYINT" -> JDBCType.TINYINT;
+            case "DECIMAL" -> JDBCType.DECIMAL;
+            case "VARCHAR" -> JDBCType.VARCHAR;
+            case "DATETIME", "TIMESTAMP" -> JDBCType.TIMESTAMP;
+            case "DATE" -> JDBCType.DATE;
+            default -> null;
+        };
     }
 }
