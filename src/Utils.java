@@ -135,12 +135,13 @@ public class Utils {
     /**
      * Searches the table's database for records that match the user's wanted filters
      *
+     * @param c connection to database
      * @param tableName the name of the table to be queried
      * @param baseSql a select SQL statement containing the wanted fields
      * @param filters the conditions the user can impose on the query
      * @return the record(s) that match the user's query
      */
-    public static ResultSet sqlSearch(String tableName, String baseSql, List<Filter> filters) {
+    public static ResultSet sqlSearch(Connection c, String tableName, String baseSql, List<Filter> filters) {
         while (true) {
             // Create the menu
             int size = filters.size();
@@ -152,7 +153,7 @@ public class Utils {
 
             if ("Return".equals(choice)) return null;
             else if ("Reset".equals(choice)) for (Filter f : filters) f.setValue(null);
-            else if ("Confirm".equals(choice)) return executeSqlSearch(baseSql, filters);
+            else if ("Confirm".equals(choice)) return executeSqlSearch(c, baseSql, filters);
             else {
                 Filter sel = null;
                 for (int i = 0; i < size && sel == null; i++) {
@@ -177,13 +178,14 @@ public class Utils {
     /**
      * Adds the user modified filters to the base query then execute that query
      *
+     * @param c connection to the database
      * @param baseSql a select SQL statement containing the wanted fields
      * @param filters the conditions the user can impose on the query
      * @return the record(s) that match the user's query
      */
-    public static ResultSet executeSqlSearch(String baseSql, List<Filter> filters) {
+    public static ResultSet executeSqlSearch(Connection c, String baseSql, List<Filter> filters) {
         try {
-            Connection c = getSqlConnection();
+            if (c == null || baseSql == null || filters == null) return null;
 
             // Make sure there is a space between the baseSql to separate the conditions to be added
             StringBuilder query = new StringBuilder(baseSql);
@@ -208,8 +210,8 @@ public class Utils {
                 types.add(f.getSqlType());
             }
 
-            ResultSet res = prepareStatement(c, query.toString(), values.toArray(new Object[0]), types.toArray(new JDBCType[0])).executeQuery();
-            return res;
+            PreparedStatement ps = prepareStatement(c, query.toString(), filters.toArray(new Field[0]));
+            return ps.executeQuery();
         } catch (SQLException e) {
             displayDatabaseError(null, e);
             return null;
@@ -421,31 +423,33 @@ public class Utils {
     }
 
     /**
-     * Creates a prepared statement where it would automatically insert the specified values to the provided sql statement.
+     * Creates a prepared statement where it would automatically insert the
+     * specified values to the provided sql statement.
      *
      * @param c connection to the database
-     * @param sql the sql statement with placeholders for every value
-     * @param values the values to be inserted to each placeholder
-     * @param types the sql type of each value
-     * @return the prepared statement with a sql statement ready to be run
+     * @param sql the SQL statement with placeholders for every value
+     * @param fields the fields to be inserted per placeholder
+     * @return the prepared statement with a SQL statement ready to be run
      */
-    public static PreparedStatement prepareStatement(Connection c, String sql, List<Field> fields) throws SQLException {
-        PreparedStatement ps = c.prepareStatement(sql);
-        if (fields == null) return ps;
-        for (Field f : fields) {
-
-        }
-        if (values == null || types == null || values.length != types.length) return ps;
-        for (int i = 1; i <= values.length; i++) {
-            ps.setObject(i, values[i - 1], types[i - 1]);
-        }
-        return ps;
+    public static PreparedStatement prepareStatement(Connection c, String sql, Field[] fields) {
+        if (c == null || sql == null || fields == null) return null;
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            for (int i = 1; i <= fields.length; i++) {
+                Field f = fields[i - 1];
+                Object val = f.getValue();
+                SQLType typ = f.getSqlType();
+                ps.setObject(i, val, typ);
+            }
+            return ps;
+        } catch (SQLException e) {displayDatabaseError(null, e);}
+        return null;
     }
 
     /**
+     * Useful to INSERT or UPDATE records.
      * Modifies the table stated on the SQL statement. The provided SQL statements must have the same amount of
      * placeholders as there are fields. The SQL statement should also be designed wherein it would follow the order
-     * defined in the field list. If not then it could lead to unintended behaviour.
+     * defined in the field list. If not then it could lead to unintended behavior.
      *
      * @param c connection to the database
      * @param sql the SQL statement with placeholders to run
@@ -454,16 +458,8 @@ public class Utils {
      */
     public static boolean modifyTable(Connection c, String sql, List<Field> fields) {
         if (c == null || sql == null || fields == null) return false;
-        try (PreparedStatement ps = c.prepareStatement(sql)) {
-            for (int i = 1; i <= fields.size(); i++) {
-                Field f = fields.get(i - 1);
-                Object val = f.getValue();
-                SQLType typ = f.getSqlType();
-
-                if (typ != null) ps.setObject(i, val, typ);
-                else ps.setObject(i, val);
-            }
-
+        try (PreparedStatement ps = prepareStatement(c, sql, fields.toArray(new Field[0]))) {
+            if (ps == null) return false;
             if (ps.executeUpdate() == 0) {
                 displayDatabaseError("REVISION", null);
                 return false;
