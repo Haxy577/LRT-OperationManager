@@ -258,16 +258,25 @@ public class Utils {
     public static Object parseInput(String input, String type) {
         if (input == null || type == null) return null;
         type = type.trim().toUpperCase();
+        boolean isUnsigned = type.contains("UNSIGNED");
         String error = "";
 
         try {
-            if (type.contains("UNSIGNED") && input.contains("-")) { // Check if the number has to be unsigned
+            if (isUnsigned && input.contains("-")) { // Check if the number has to be unsigned
                 displayInputError("SIGNED");
                 return null;
             }
             if (type.contains("INT")) {
                 error = "INT";
-                return Integer.parseInt(input);
+                long val = Long.parseLong(input);
+
+                if (type.contains("TINYINT")) {
+                    if ((isUnsigned && val <= 255) || (!isUnsigned && val >= -128 && val <= 127)) return (int) val;
+                }
+                else if (type.contains("SMALLINT")) {
+                    if ((isUnsigned && val <= 65535) || (!isUnsigned && val >= -32768 && val <= 32767)) return (int) val;
+                }
+                else if ((isUnsigned && val <= 4294967295L) || (!isUnsigned && val >= -2147483648 && val <= 2147483647)) return Integer.parseInt(input);
             }
             else if (type.contains("DATETIME")) {
                 error = "DATETIME";
@@ -302,6 +311,7 @@ public class Utils {
             displayInputError(error);
             return null;
         }
+        return null;
     }
 
     /**
@@ -322,6 +332,7 @@ public class Utils {
             case "DELETE" -> "Cannot delete the record due to it being referenced in other table(s)";
             case "REFERENCE" -> "Cannot modify this field, this value is being referenced in other table(s)";
             case "PRECISION" -> "The decimal is to large/precise. Please enter a smaller/less precise number";
+            case "OVERFLOW" -> "Please input a smaller number";
             default -> "Error";
         };
         System.out.println(RED + "Invalid input: " + msg + RESET);
