@@ -481,4 +481,36 @@ public class Utils {
             return false;
         }
     }
+
+    /**
+     * Queries the SQL and updates the specified fields stated in the SQL statement.
+     *
+     * @param c connection to the database
+     * @param sql the SQL select query statement to obtain the values for each desired field
+     * @param identifier the field to identify the record to be retrieved
+     * @param fields the fields that would have their values updated based on the values of the current obtained record
+     * @return a copy of the field values obtained
+     */
+    public static Map<String, Object> loadValues(Connection c, String sql, Field identifier, Map<String, Field> fields) {
+        try (PreparedStatement ps = c.prepareStatement(sql)){
+            ps.setObject(1, identifier.getValue(), identifier.getSqlType());
+            Map<String, Object> values = new LinkedHashMap<>();
+
+            try (ResultSet res = ps.executeQuery()) {
+                if (!res.next()) {
+                    Utils.displayInputError("NO_RECORD");
+                    return new LinkedHashMap<>();
+                }
+                for (String k : fields.keySet()) {
+                    Field f = fields.get(k);
+                    f.setValue(res.getObject(f.getName()));
+                    values.put(k, f.getValue());
+                }
+            }
+            return values;
+        } catch (SQLException e) {
+            Utils.displayDatabaseError(null, e);
+            return new LinkedHashMap<>();
+        }
+    }
 }
