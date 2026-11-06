@@ -1,3 +1,4 @@
+import java.util.*;
 import java.sql.JDBCType;
 
 public class Field {
@@ -40,11 +41,19 @@ public class Field {
     }
 
     private JDBCType getJdbcType(String type) {
-        if (type.contains("INT")) return JDBCType.INTEGER;
+        if (type.contains("TINYINT")) return JDBCType.TINYINT;
+        else if (type.contains("SMALLINT")) return JDBCType.SMALLINT;
+        else if (type.contains("INT")) return JDBCType.INTEGER;
         else if (type.contains("DECIMAL")) return JDBCType.DECIMAL;
         else if (type.contains("VARCHAR")) return JDBCType.VARCHAR;
         else if (type.contains("DATETIME")) return JDBCType.TIMESTAMP;
         else if (type.contains("DATE")) return JDBCType.DATE;
         else return null;
+    }
+
+    public static Field searchByName(String target, List<Field> fields) {
+        if (target == null || fields == null) return null;
+        for (Field f : fields) if (target.equalsIgnoreCase(f.getName())) return f;
+        return null;
     }
 }

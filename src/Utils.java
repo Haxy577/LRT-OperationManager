@@ -46,7 +46,7 @@ public class Utils {
     public static String displayMenu(String prompt, String[] options) {
         if (options == null || options.length < 1) {
             System.err.println("The provided options cannot be null nor empty");
-            return null;
+            return "";
         }
 
         System.out.println(prompt);
@@ -158,56 +158,51 @@ public class Utils {
     }
 
     /**
-     * Returns a list of options containing the provided labels together with its
-     * value, a reset option,
+     * Returns a list of options containing the labels and value of each field, a reset option,
      * a confirm option, and a return option
      *
-     * @param labels the labels for each option
-     * @param values the value for each label
-     * @return a string array of options
+     * @param fields the list of fields to be displayed
+     * @return a list of options
      */
-    public static String[] createModifiableMenu(String[] labels, Object[] values) {
-        if (labels == null || values == null || labels.length > values.length)
-            return new String[0];
+    public static List<String> createModifiableMenu(List<Field> fields) {
+        if (fields == null) return new ArrayList<>();
         List<String> menu = new ArrayList<>();
-        for (int i = 0; i < labels.length; i++) {
-            menu.add(String.format("%-25s -> %s", labels[i], values[i] == null ? "None" : values[i]));
+        for (Field f : fields) {
+            String label = f.getLabel();
+            Object val = f.getValue();
+            menu.add(String.format("%-25s -> %s", label, val == null ? "None" : val.toString()));
         }
         menu.add("Reset");
         menu.add("Confirm");
         menu.add("Return");
-        return menu.toArray(new String[0]);
+        return menu;
     }
 
     /**
      * Searches the table's database for records that match the user's wanted
      * filters
      *
+     * @param c connection to database
      * @param tableName the name of the table to be queried
      * @param baseSql   a select SQL statement containing the wanted fields
      * @param filters   the conditions the user can impose on the query
      * @return the record(s) that match the user's query
      */
-    public static ResultSet sqlSearch(String tableName, String baseSql, List<Filter> filters) {
+    public static ResultSet sqlSearch(Connection c, String tableName, String baseSql, List<Filter> filters) {
         while (true) {
             // Create the menu
             int size = filters.size();
-            String[] menu = new String[size];
-            for (int i = 0; i < size; i++)
-                menu[i] = filters.get(i).getLabel();
+            List<String> menu = createModifiableMenu(new ArrayList<>(filters));
 
             String prompt = "Configure " + tableName + " search filters, then select 'Execute search':";
-            String choice = displayMenu(prompt, menu);
+            String choice = displayMenu(prompt, menu.toArray(new String[0]));
 
-            if ("Return".equals(choice))
-                return null;
-            else if ("Reset".equals(choice))
-                for (Filter f : filters)
-                    f.setValue(null);
-            else if ("Confirm".equals(choice))
-                return executeSqlSearch(baseSql, filters);
+            if ("Return".equals(choice)) return null;
+            else if ("Reset".equals(choice)) for (Filter f : filters) f.setValue(null);
+            else if ("Confirm".equals(choice)) return executeSqlSearch(c, baseSql, filters);
             else {
                 Filter sel = null;
+                choice = choice.substring(0, choice.indexOf("->")).trim();
                 for (int i = 0; i < size && sel == null; i++) {
                     Filter f = filters.get(i);
                     if (f.getLabel().equalsIgnoreCase(choice))
@@ -232,13 +227,14 @@ public class Utils {
     /**
      * Adds the user modified filters to the base query then execute that query
      *
+     * @param c connection to the database
      * @param baseSql a select SQL statement containing the wanted fields
      * @param filters the conditions the user can impose on the query
      * @return the record(s) that match the user's query
      */
-    public static ResultSet executeSqlSearch(String baseSql, List<Filter> filters) {
+    public static ResultSet executeSqlSearch(Connection c, String baseSql, List<Filter> filters) {
         try {
-            Connection c = getSqlConnection();
+            if (c == null || baseSql == null || filters == null) return null;
 
             // Make sure there is a space between the baseSql to separate the conditions to
             // be added
@@ -246,26 +242,25 @@ public class Utils {
             query.append(" ");
 
             // if there is no where clause
-            if (!"WHERE".contains(baseSql.toUpperCase()))
-                query.append("WHERE 1=1 ");
+            if (!baseSql.toUpperCase().contains("WHERE")) query.append(" WHERE 1=1 ");
 
             // Create condition blocks
-            List<Object> values = new ArrayList<>();
-            List<JDBCType> types = new ArrayList<>();
+            List<Field> values = new ArrayList<>();
             for (Filter f : filters) {
-                if (f.getValue() == null)
-                    continue;
-                if ("LIKE".equalsIgnoreCase(f.getOperator()))
-                    query.append("AND ").append(f.getName()).append(" LIKE %?% ");
-                else
+                if (f.getValue() == null) continue;
+                if ("LIKE".equalsIgnoreCase(f.getOperator())) {
+                    query.append(String.format("AND %s LIKE ? ", f.getName()));
+                    f.setValue("%" + f.getValue() + "%");
+                    values.add(f);
+                }
+                else {
                     query.append(String.format("AND %s %s ? ", f.getName(), f.getOperator()));
-                values.add(f.getValue());
-                types.add(f.getSqlType());
+                    values.add(f);
+                }
             }
 
-            ResultSet res = prepareStatement(c, query.toString(), values.toArray(new Object[0]),
-                    types.toArray(new JDBCType[0])).executeQuery();
-            return res;
+            PreparedStatement ps = prepareStatement(c, query.toString(), values.toArray(new Field[0]));
+            return ps.executeQuery();
         } catch (SQLException e) {
             displayDatabaseError(null, e);
             return null;
@@ -295,10 +290,19 @@ public class Utils {
     }
 
     /**
-     * Validates the passed input and converts the input to its type if it were to
-     * be valid.
-     * If the input is invalid then it would display an error message describing why
-     * its invalid.
+     * Gets the user input, validates it, then updates the value of the field based on the input of the user.
+     * If the input is blank then it would set its value to null.
+     *
+     * @param field the field to be updated/modified
+     */
+    public static void updateValue(Field field) {
+        String prompt = String.format("Enter %s: ", field.getLabel());
+        field.setValue(getInput(prompt, field.getType()));
+    }
+
+    /**
+     * Validates the passed input and converts the input to its type if it were to be valid.
+     * If the input is invalid then it would display an error message describing why its invalid.
      *
      * @param input the input of the user
      * @param type  SQL type
@@ -308,17 +312,29 @@ public class Utils {
         if (input == null || type == null)
             return null;
         type = type.trim().toUpperCase();
+        boolean isUnsigned = type.contains("UNSIGNED");
         String error = "";
 
         try {
-            if (type.contains("UNSIGNED") && input.contains("-")) { // Check if the number has to be unsigned
+            if (isUnsigned && input.contains("-")) { // Check if the number has to be unsigned
                 displayInputError("SIGNED");
                 return null;
             }
             if (type.contains("INT")) {
                 error = "INT";
-                return Integer.parseInt(input);
-            } else if (type.contains("DATETIME")) {
+                long val = Long.parseLong(input);
+
+                if (type.contains("TINYINT")) {
+                    if ((isUnsigned && val <= 255) || (!isUnsigned && val >= -128 && val <= 127)) return (int) val;
+                }
+                else if (type.contains("SMALLINT")) {
+                    if ((isUnsigned && val <= 65535) || (!isUnsigned && val >= -32768 && val <= 32767)) return (int) val;
+                }
+                else if ((isUnsigned && val <= 4294967295L) || (!isUnsigned && val >= -2147483648 && val <= 2147483647)) return Integer.parseInt(input);
+                displayInputError("OVERFLOW");
+                return null;
+            }
+            else if (type.contains("DATETIME")) {
                 error = "DATETIME";
                 return Timestamp.valueOf(input);
             } else if (type.contains("DATE")) {
@@ -368,6 +384,7 @@ public class Utils {
             case "DELETE" -> "Cannot delete the record due to it being referenced in other table(s)";
             case "REFERENCE" -> "Cannot modify this field, this value is being referenced in other table(s)";
             case "PRECISION" -> "The decimal is to large/precise. Please enter a smaller/less precise number";
+            case "OVERFLOW" -> "Please input a smaller number";
             default -> "Error";
         };
         System.out.println(RED + "Invalid input: " + msg + RESET);
@@ -385,7 +402,7 @@ public class Utils {
             return;
         }
         String msg = switch (type) {
-            case "REVISION" -> "Please try again, the record you are trying to update is outdated";
+            case "REVISION" -> "Please try again, the record/table you are trying to update is outdated";
             default -> "Error";
         };
         System.out.println(RED + "Database Error: " + msg + RESET);
@@ -395,17 +412,16 @@ public class Utils {
      * Checks if the specified field and value combination exists within the
      * specified table
      *
+     * @param c connection to database
      * @param table the name of the table in the database
-     * @param field the name of the field in the database
-     * @param value the value to look for
+     * @param field the field in the database and the value to look for inside it
      * @return true if the record exists, false otherwise
      */
-    public static boolean doesRecordExist(String table, String field, String value) {
-        Connection c = getSqlConnection();
-        String sql = "SELECT 1 FROM " + table + " WHERE " + field + " = ?;";
-        try {
-            PreparedStatement ps = c.prepareStatement(sql);
-            ps.setString(1, value);
+    public static boolean doesRecordExist(Connection c, String table, Field field) {
+        if (c == null || table == null || field == null) return false;
+        String sql = String.format("SELECT 1 FROM %s WHERE %s = ?;", table, field.getName());
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setObject(1, field.getValue(), field.getSqlType());
             return ps.executeQuery().next();
         } catch (SQLException e) {
             return false;
@@ -417,23 +433,17 @@ public class Utils {
      * Could also check if other tables depend on this record,
      * if it does then it does not delete the record.
      *
-     * @param table         the table of the record to be deleted
-     * @param relatedTables checks these tables first if the value exists there. Can
-     *                      be null indicating to not check any tables
-     * @param field         the name of the field in the table
-     * @param value         the value of the record to be deleted
+     * @param table the table of the record to be deleted
+     * @param relatedTables checks these tables first if the value exists there. Can be null indicating to not check any tables
+     * @param field the name, type, and value of the record to be deleted
      * @return true if the record was deleted, false otherwise
      */
-    public static boolean safeDeleteRecord(String table, String[] relatedTables, String field, String value) {
-        Connection c = getSqlConnection();
-        if (c == null)
-            return false;
+    public static boolean safeDeleteRecord(Connection c, String table, String[] relatedTables, Field field) {
+        if (c == null || table == null || field == null) return false;
+        String sql = String.format("SELECT revno FROM %s WHERE %s = ?;", table, field.getName());
 
-        try {
+        try (PreparedStatement ps = prepareStatement(c, sql, new Field[]{field})) {
             // get revision number
-            String sql = String.format("SELECT revno FROM %s WHERE %s = ?;", table, field);
-            PreparedStatement ps = c.prepareStatement(sql);
-            ps.setString(1, value);
             ResultSet res = ps.executeQuery();
 
             // if there was no match
@@ -446,7 +456,7 @@ public class Utils {
             // check if value exists in other tables
             if (relatedTables != null) {
                 for (String t : relatedTables) {
-                    if (doesRecordExist(t, field, value)) {
+                    if (doesRecordExist(c, t, field)) {
                         displayInputError("DELETE");
                         return false;
                     }
@@ -454,35 +464,107 @@ public class Utils {
             }
 
             // delete the record
-            sql = String.format("DELETE FROM %s WHERE %s = ? AND revno = ?;", table, field);
-            ps = c.prepareStatement(sql);
-            ps.setString(1, value);
-            ps.setInt(2, revno);
-            ps.executeUpdate();
+            sql = String.format("DELETE FROM %s WHERE %s = ? AND revno = ?;", table, field.getName());
+
+            try (PreparedStatement del = c.prepareStatement(sql)) {
+                del.setObject(1, field.getValue(), field.getSqlType());
+                del.setInt(2, revno);
+
+                if (del.executeUpdate() == 0) {
+                    displayDatabaseError("REVISION", null);
+                    return false;
+                }
+                return true;
+            } catch (SQLException e) {
+                displayDatabaseError(null, e);
+                return false;
+            }
         } catch (SQLException e) {
+            displayDatabaseError(null, e);
             return false;
         }
-        return true;
     }
 
     /**
      * Creates a prepared statement where it would automatically insert the
      * specified values to the provided sql statement.
      *
-     * @param c      connection to the database
-     * @param sql    the sql statement with placeholders for every value
-     * @param values the values to be inserted to each placeholder
-     * @param types  the sql type of each value
-     * @return the prepared statement with a sql statement ready to be run
+     * @param c connection to the database
+     * @param sql the SQL statement with placeholders for every value
+     * @param fields the fields to be inserted per placeholder
+     * @return the prepared statement with a SQL statement ready to be run
      */
-    public static PreparedStatement prepareStatement(Connection c, String sql, Object[] values, JDBCType[] types)
-            throws SQLException {
-        PreparedStatement ps = c.prepareStatement(sql);
-        if (values == null || types == null || values.length != types.length)
+    public static PreparedStatement prepareStatement(Connection c, String sql, Field[] fields) {
+        if (c == null || sql == null || fields == null) return null;
+        try {
+            PreparedStatement ps = c.prepareStatement(sql);
+            for (int i = 1; i <= fields.length; i++) {
+                Field f = fields[i - 1];
+                Object val = f.getValue();
+                SQLType typ = f.getSqlType();
+                if (typ == null) ps.setObject(i, val);
+                else ps.setObject(i, val, typ);
+            }
             return ps;
-        for (int i = 1; i <= values.length; i++) {
-            ps.setObject(i, values[i - 1], types[i - 1]);
+        } catch (SQLException e) {displayDatabaseError(null, e);}
+        return null;
+    }
+
+    /**
+     * Useful to INSERT or UPDATE records.
+     * Modifies the table stated on the SQL statement. The provided SQL statements must have the same amount of
+     * placeholders as there are fields. The SQL statement should also be designed wherein it would follow the order
+     * defined in the field list. If not then it could lead to unintended behavior.
+     *
+     * @param c connection to the database
+     * @param sql the SQL statement with placeholders to run
+     * @param fields the field values to be added per placeholder
+     * @return true if the table was updated, false otherwise
+     */
+    public static boolean modifyTable(Connection c, String sql, List<Field> fields) {
+        if (c == null || sql == null || fields == null) return false;
+        try (PreparedStatement ps = prepareStatement(c, sql, fields.toArray(new Field[0]))) {
+            if (ps == null) return false;
+            if (ps.executeUpdate() == 0) {
+                displayDatabaseError("REVISION", null);
+                return false;
+            }
+            return true;
+        } catch (Exception e) {
+            displayDatabaseError(null, e);
+            return false;
         }
-        return ps;
+    }
+
+    /**
+     * Queries the SQL and updates the specified fields stated in the SQL statement.
+     *
+     * @param c connection to the database
+     * @param sql the SQL select query statement to obtain the values for each desired field
+     * @param identifier the field to identify the record to be retrieved
+     * @param fields the fields that would have their values updated based on the values of the current obtained record
+     * @return a copy of the field values obtained
+     */
+    public static Map<String, Object> loadValues(Connection c, String sql, Field identifier, Map<String, Field> fields) {
+        try (PreparedStatement ps = c.prepareStatement(sql)){
+            ps.setObject(1, identifier.getValue(), identifier.getSqlType());
+            Map<String, Object> values = new LinkedHashMap<>();
+
+            try (ResultSet res = ps.executeQuery()) {
+                if (!res.next()) {
+                    Utils.displayInputError("NO_RECORD");
+                    return new LinkedHashMap<>();
+                }
+                for (String k : fields.keySet()) {
+                    Field f = fields.get(k);
+                    f.setValue(res.getObject(f.getName()));
+                    values.put(k, f.getValue());
+                }
+            }
+            return values;
+        } catch (SQLException e) {
+            Utils.displayDatabaseError(null, e);
+            return new LinkedHashMap<>();
+        }
     }
 }
