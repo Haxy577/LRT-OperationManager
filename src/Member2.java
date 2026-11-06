@@ -67,7 +67,7 @@ public class Member2 implements Application {
             switch (Utils.displayMenu(prompt, options)) {
                 case "Create Task" -> createTask();
                 case "Search Task" -> searchTask();
-//                case "Edit Task" -> updateTask();
+                case "Edit Task" -> updateTask();
                 case "Delete Task" -> deleteTask();
                 default -> {return;}
             }
@@ -228,82 +228,81 @@ public class Member2 implements Application {
             Utils.displayInputError("NO_RECORD");
             return null;
         }
-    }
+    }*/
 
     private void updateTask() {
-        Scanner sc = new Scanner(System.in);
-        String rec;
+        Map<String, Field> fields = new LinkedHashMap<>();
+        // Add modifiable fields
+        fields.put("Task Date", new Field("taskdate", "Task Date", "DATE"));
+        fields.put("Task Type", new Field("tasktype", "Task Type", "VARCHAR(15)"));
+        fields.put("Duration in Hours", new Field("hours", "Duration in Hours", "DECIMAL(8,2) UNSIGNED"));
+        fields.put("Details", new Field("details", "Details", "VARCHAR(255)"));
 
-        // get the record to be updated
-        do {
-            System.out.print("Input the Task Reference of the record to be edited (blank to return): ");
-            rec = sc.nextLine().trim();
-            if (rec.isEmpty()) return;
-            if (!Utils.isValidInput(rec, "VARCHAR(16)")) continue;
-            if (Utils.doesRecordExist("servicetask", "taskno", rec)) break;
-            Utils.displayInputError("NO_RECORD");
-        } while (true);
+        int fieldNum = fields.size();
 
-        try {
-            // load values
-            ResultSet res = retrieveTask(rec);
-            int n = res.getMetaData().getColumnCount();
-            String[] values = new String[n];
-            String[] labels = {"Task Date", "Task Type", "Duration in Hours", "Details"};
-            for (int i = 0; i < n; i++) values[i] = res.getString(i + 1);
-            String[] orig = Arrays.copyOf(values, n);
+        // add fields for search/conditions
+        fields.put("Revision", new Field("revno", "Revision", "INT UNSIGNED"));
+        fields.put("Task Reference", new Field("taskno", "Task Reference", "VARCHAR(16)"));
 
+        try (Connection c = Utils.getSqlConnection()) {
+            // get the record to be updated
+            Field ref = fields.get("Task Reference");
             while (true) {
-                // Create menu
-                List<String> menu = Utils.createModifiableMenu(labels, Arrays.copyOfRange(values, 2, n));
-                int choice = Utils.displayMenu("Modify fields to be updated, then choose 'Confirm' afterwards:", menu.toArray(new String[0]));
-                int num = menu.size() - 1;
+                Utils.updateValue(ref);
+                if (ref.getValue() == null) return;
+                if (Utils.doesRecordExist(c, "servicetask", ref)) break;
+                Utils.displayInputError("NO_RECORD");
+            }
 
-                if (choice == num) return; // return
-                else if (choice == num - 1) {
-                    saveTaskUpdate(values); // confirm
+            // load values
+            final String selectSql = "SELECT taskdate, tasktype, hours, details, revno, taskno FROM servicetask WHERE taskno = ?;";
+            try (PreparedStatement ps = c.prepareStatement(selectSql)){
+                ps.setObject(1, ref.getValue(), ref.getSqlType());
+                ResultSet res = ps.executeQuery();
+                if (!res.next()) {
+                    Utils.displayInputError("NO_RECORD");
                     return;
                 }
-                else if (choice == num - 2) values = Arrays.copyOf(orig, n); // reset
-                else handleTaskInput(choice + 2, values); // modify
+                for (String k : fields.keySet()) {
+                    Field f = fields.get(k);
+                    f.setValue(res.getObject(f.getName()));
+                }
             }
-        } catch (SQLException _) {}
+
+            // Store the original values
+            Map<String, Object> originalValues = new LinkedHashMap<>(fields);
+            for (String k : fields.keySet()) originalValues.put(k, fields.get(k).getValue());
+
+            while (true) {
+                List<String> menu = Utils.createModifiableMenu(new ArrayList<>(fields.values()).subList(0, fieldNum));
+                String prompt = "Modify every fields, then choose 'Confirm' afterwards:";
+                String choice = Utils.displayMenu(prompt, menu.toArray(new String[0]));
+
+                switch (choice) {
+                    case "Return" -> {return;}
+                    case "Reset" -> {for (String k : fields.keySet()) fields.get(k).setValue(originalValues.get(k));}
+                    case "Confirm" -> {
+                        String update = "UPDATE servicetask SET taskdate = ?, tasktype = ?, hours = ?, details = ?, revno = revno + 1 WHERE revno = ? AND taskno = ?;";
+                        try {
+                            c.setAutoCommit(false);
+
+                            boolean res = Utils.modifyTable(c, update, new ArrayList<>(fields.values()));
+                            if (!res) c.rollback();
+                            else {
+                                c.commit();
+                                return;
+                            }
+                        } catch (SQLException e) {Utils.displayDatabaseError(null, e);}
+                        return;
+                    }
+                    default -> {
+                        String key = choice.substring(0, choice.indexOf("->")).trim();
+                        handleTaskInput(c, fields.get(key));
+                    }
+                }
+            }
+        } catch (SQLException e) {Utils.displayDatabaseError(null, e);}
     }
-
-    private void saveTaskUpdate(String[] values) {
-        try {
-            Connection c = Utils.getSqlConnection();
-            String sql = "UPDATE servicetask SET taskdate = ?, tasktype = ?, hours = ?, details = ?, revno = revno + 1 WHERE taskno = ? AND revno = ?;";
-            Object[] insert = {Date.valueOf(values[2]), values[3], Double.parseDouble(values[4]), values[5], values[0], Integer.parseInt(values[6])};
-            JDBCType[] types = {JDBCType.DATE, JDBCType.VARCHAR, JDBCType.DECIMAL, JDBCType.VARCHAR, JDBCType.VARCHAR, JDBCType.INTEGER};
-            PreparedStatement ps = Utils.prepareStatement(c, sql, insert, types);
-
-            int rows = ps.executeUpdate();
-            if (rows == 0) Utils.displayDatabaseError("REVISION", null);
-
-            // close resources
-            c.close();
-            ps.close();
-        } catch (SQLException e) {
-            Utils.displayDatabaseError(null, e);
-        }
-    }
-
-    private ResultSet retrieveTask(String val) {
-        Connection c = Utils.getSqlConnection();
-        if (c == null) return null;
-        try {
-            String sql = "SELECT * FROM servicetask WHERE taskno = ?;";
-            PreparedStatement ps = c.prepareStatement(sql);
-            ps.setString(1, val);
-            ResultSet res = ps.executeQuery();
-            res.next();
-            return res;
-        } catch (SQLException e) {
-            Utils.displayInputError("NO_RECORD");
-            return null;
-        }
-    }*/
 
     private void deleteTrain() {
         String prompt = "Input the Train Reference of the record you wish to delete (blank to return): ";
