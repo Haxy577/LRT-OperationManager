@@ -45,7 +45,7 @@ import java.util.Scanner;
  *
  * @author
  */
-/*public class Member4 implements Application {
+public class Member4 implements Application {
 
     private static Scanner sc = new Scanner(System.in);
     private DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"); // DateTime format
@@ -377,4 +377,4 @@ import java.util.Scanner;
         System.out.println("This is the report menu!");
     }
 
-}*/
+}
