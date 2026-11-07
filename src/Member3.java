@@ -1,3 +1,6 @@
+import java.sql.*;
+import java.util.*;
+
 /**
  * Member 3: Train-call management
  * <p>
@@ -22,12 +25,56 @@
  * record requiring exceptional correction is not removed through an unrestricted delete option.
  * </p>
  *
- * @author
+ * @author Patrick Ang Ngo Ching
  */
 public class Member3 implements Application{
 
     @Override
     public void menu() {
+        Boolean isRunning = true;
+        String[] options = {
+                "Create Train Call",
+                "Search Train Call",
+                "Record Departure",
+                "Edit Train Call",
+                "Delete Train Call",
+                "Exit"
+        };
+        while (isRunning) {
+            switch (Utils.displayMenu("Select Option: ", options)) {
+                case "Create Train Call":   createTrainCall();  break;
+                case "Search Train Call":   searchTrainCall();  break;
+                case "Record Departure":    recordDeparture();  break;
+                case "Edit Train Call":     editTrainCall();    break;
+                case "Delete Train Call":   deleteTrainCall();  break;
+                default: 
+                    isRunning = false;  
+                    break;
+            }
+        }
+    }
+
+    private void createTrainCall() {
+        // try (Connection c = Utils.getSqlConnection()){
+
+        // } catch (SQLException e) {
+        //     Utils.displayDatabaseError(null, e);
+        // }
+    }
+
+    private void searchTrainCall() {
+
+    }
+
+    private void recordDeparture() {
+
+    }
+
+    private void editTrainCall() {
+
+    }
+
+    private void deleteTrainCall() {
 
     }
 }
