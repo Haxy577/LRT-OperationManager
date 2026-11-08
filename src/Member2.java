@@ -180,8 +180,10 @@ public class Member2 implements Application {
                     case "Return" -> {return;}
                     case "Reset" -> {for (String k : fields.keySet()) fields.get(k).setValue(originalValues.get(k));}
                     case "Confirm" -> {
+                        if (!Utils.checkAllFields(active)) continue;
                         boolean hasTypeChange = !originalValues.get("Train Type").toString().equalsIgnoreCase(type);
                         saveTrainUpdate(c, fields, hasTypeChange);
+                        return;
                     }
                     default -> {
                         String key = choice.substring(0, choice.indexOf("->")).trim();
@@ -276,6 +278,7 @@ public class Member2 implements Application {
                     case "Return" -> {return;}
                     case "Reset" -> {for (String k : fields.keySet()) fields.get(k).setValue(originalValues.get(k));}
                     case "Confirm" -> {
+                        if (!Utils.checkAllFields(new ArrayList<>(fields.values()))) continue;
                         String update = "UPDATE servicetask SET taskdate = ?, tasktype = ?, hours = ?, details = ?, revno = revno + 1 WHERE revno = ? AND taskno = ?;";
                         try {
                             c.setAutoCommit(false);
@@ -385,6 +388,7 @@ public class Member2 implements Application {
                     case "Return" -> {return;}
                     case "Reset" -> {for (Field f : fields.values()) f.setValue(null);}
                     case "Confirm" -> {
+                        if (!Utils.checkAllFields(active)) continue;
                         saveTrainRecord(c, new ArrayList<>(fields.values()));
                         return;
                     }
@@ -491,6 +495,7 @@ public class Member2 implements Application {
                     case "Return" -> {return;}
                     case "Reset" -> {for (Field f : fields.values()) f.setValue(null);}
                     case "Confirm" -> {
+                        if (!Utils.checkAllFields(new ArrayList<>(fields.values()))) continue;
                         c.setAutoCommit(false);
 
                         boolean res = Utils.modifyTable(c, sql, new ArrayList<>(fields.values()));

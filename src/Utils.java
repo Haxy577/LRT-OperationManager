@@ -204,12 +204,7 @@ public class Utils {
                 }
                 case "Confirm" -> {
                     // make sure there are no null values in mandatory filters
-                    boolean confirm = true;
-                    if (mandatory != null) for (Filter f : mandatory) if (f.getValue() == null) {
-                        System.out.println(RED + "Please input a value for " + f.getLabel().trim() + "." + RESET);
-                        confirm = false;
-                    };
-                    if (!confirm) continue;
+                    if (mandatory != null && !checkAllFields(new ArrayList<>(mandatory))) continue;
 
                     List<Filter> configured = new ArrayList<>();
                     // add filters before the having clause
@@ -425,7 +420,7 @@ public class Utils {
             case "NULL" -> "Please input a value";
             default -> "Error";
         };
-        System.out.println(RED + "Invalid input: " + msg + RESET);
+        displayError("Invalid input " + msg);
     }
 
     /**
@@ -436,14 +431,38 @@ public class Utils {
      */
     public static void displayDatabaseError(String type, Exception e) {
         if (e != null) {
-            System.out.println(RED + "Database Error: " + e.toString() + RESET);
+            displayError("Database Error: " + e.toString());
             return;
         }
         String msg = switch (type) {
             case "REVISION" -> "Please try again, the record/table you are trying to update is outdated";
             default -> "Error";
         };
-        System.out.println(RED + "Database Error: " + msg + RESET);
+        displayError("Database Error: " + msg);
+    }
+
+    /**
+     * displays an error message
+     *
+     * @param msg the message to display
+     */
+    public static void displayError(String msg) {System.out.println(RED + "Error: " + msg + RESET);}
+
+    /**
+     * Checks if all specified fields have non-null values. Would output an error message per field that is null.
+     *
+     * @param fields the collection of fields to check
+     * @return true if all fields have non-null values, false otherwise
+     */
+    public static boolean checkAllFields(List<Field> fields) {
+        boolean confirm = true;
+        for (Field f : fields) {
+            if (f.getValue() == null) {
+                Utils.displayError(String.format("Please input a value for %s", f.getLabel()));
+                confirm = false;
+            }
+        }
+        return confirm;
     }
 
     /**
