@@ -196,8 +196,15 @@ public class Utils {
                     if (optional != null) for (Filter f : optional) f.setValue(null);
                 }
                 case "Confirm" -> {
-                    List<Filter> configured = new ArrayList<>();
+                    // make sure there are no null values in mandatory filters
+                    boolean confirm = true;
+                    if (mandatory != null) for (Filter f : mandatory) if (f.getValue() == null) {
+                        System.out.println(RED + "Please input a value for " + f.getLabel().trim() + "." + RESET);
+                        confirm = false;
+                    };
+                    if (!confirm) continue;
 
+                    List<Filter> configured = new ArrayList<>();
                     // add filters before the having clause
                     for (Filter f : filters) if (f.getValue() != null && !f.isHaving()) configured.add(f);
 
@@ -389,6 +396,7 @@ public class Utils {
             case "REFERENCE" -> "Cannot modify this field, this value is being referenced in other table(s)";
             case "PRECISION" -> "The decimal is to large/precise. Please enter a smaller/less precise number";
             case "OVERFLOW" -> "Please input a smaller number";
+            case "NULL" -> "Please input a value";
             default -> "Error";
         };
         System.out.println(RED + "Invalid input: " + msg + RESET);

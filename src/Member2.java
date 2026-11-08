@@ -76,7 +76,7 @@ public class Member2 implements Application {
     private void searchTrain() {
         String sql = "SELECT t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, t.active " +
                 "FROM train t LEFT JOIN passengertrain p ON t.trainno = p.trainno " +
-                "LEFT JOIN servicetrain s ON t.trainno = s.trainno WHERE 1=1 ";
+                "LEFT JOIN servicetrain s ON t.trainno = s.trainno";
         List<Filter> filters = List.of(
                 new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE", false),
                 new Filter("t.label", "Train Label", "VARCHAR(80)", null, "LIKE", false),
@@ -85,7 +85,7 @@ public class Member2 implements Application {
                 new Filter("s.dutytype", "Train Duty Type", "VARCHAR(15)", new String[]{"Inspection", "Maintenance", "Recovery"}, "=", false)
         );
         try (Connection c = Utils.getSqlConnection()){
-            Utils.displaySqlResult(Utils.sqlSearch(c,"Trains", sql, filters));
+            Utils.displaySqlResult(Utils.sqlSearch(c, sql, null, null, null, filters));
         } catch (SQLException e) {Utils.displayDatabaseError(null, e);}
     }
 
@@ -99,7 +99,7 @@ public class Member2 implements Application {
                 new Filter("s.tasktype", "Task Type", "VARCHAR(15)", new String[]{"Inspection", "Maintenance", "Recovery"}, "=", false)
         );
         try (Connection c = Utils.getSqlConnection()){
-            Utils.displaySqlResult(Utils.sqlSearch(c,"Service Task", sql, filters));
+            Utils.displaySqlResult(Utils.sqlSearch(c, sql, null, null, null, filters));
         } catch (SQLException e) {Utils.displayDatabaseError(null, e);}
     }
 
