@@ -178,6 +178,13 @@ public class Utils {
         return menu;
     }
 
+    /**
+     * Configures the values of the specified filters
+     *
+     * @param mandatory filters that must be configured
+     * @param optional filters that may be configured
+     * @return configured filters
+     */
     public static List<Filter> configureFilters(List<Filter> mandatory, List<Filter> optional) {
         List<Filter> filters = new ArrayList<>();
         if (mandatory != null) filters.addAll(mandatory);
@@ -233,6 +240,17 @@ public class Utils {
         }
     }
 
+    /**
+     * Configures the values of the specified filters and executes the SQL query based on the configured filters
+     *
+     * @param c connection to the database
+     * @param headSql the SQL query consisting of the SELECT and FROM clauses
+     * @param groupBy the SQL query consisting of the GROUP BY clause
+     * @param tailSql the SQL query consisting of the ORDER BY and LIMIT clauses
+     * @param mandatory filters that must be configured
+     * @param optional filters that may be configured
+     * @return the resulting ResultSet of the generated SQL query statement
+     */
     public static ResultSet sqlSearch(Connection c, String headSql, String groupBy, String tailSql, List<Filter> mandatory, List<Filter> optional) {
         List<Filter> filters = configureFilters(mandatory, optional);
         if (filters == null) return null;
@@ -262,6 +280,14 @@ public class Utils {
         }
     }
 
+    /**
+     * Appends the specified filter to the SQL query based on the specified keyword. Would update the filter's value
+     * if its operator is LIKE to be in a formal of: '%value%'
+     *
+     * @param query the SQL query statement
+     * @param keyword the keyword to append the filter to
+     * @param filter the filter to append
+     */
     public static void appendClause(StringBuilder query, String keyword, Filter filter) {
         if (filter == null || filter.getValue() == null) return;
         keyword = keyword.toUpperCase().trim();
