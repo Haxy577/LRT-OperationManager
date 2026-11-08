@@ -178,116 +178,46 @@ public class Utils {
         return menu;
     }
 
-    /**
-     * Searches the table's database for records that match the user's wanted
-     * filters
-     *
-     * @param c connection to database
-     * @param tableName the name of the table to be queried
-     * @param baseSql   a select SQL statement containing the wanted fields
-     * @param filters   the conditions the user can impose on the query
-     * @return the record(s) that match the user's query
-     */
-    public static ResultSet sqlSearch(Connection c, String tableName, String baseSql, List<Filter> filters) {
-        while (true) {
-            // Create the menu
-            int size = filters.size();
-            List<String> menu = createModifiableMenu(new ArrayList<>(filters));
+    public static void configureFilters(List<Filter> mandatory, List<Filter> optional) {
+        List<Filter> filters = new ArrayList<>();
+        if (mandatory != null) filters.addAll(mandatory);
+        if (optional != null) filters.addAll(optional);
 
-            String prompt = "Configure " + tableName + " search filters, then select 'Execute search':";
+        while (true) {
+            List<String> menu = createModifiableMenu(new ArrayList<>(filters));
+            String prompt = "Modify all desired fields to search for, choose 'Confirm' after: ";
             String choice = displayMenu(prompt, menu.toArray(new String[0]));
 
-            if ("Return".equals(choice)) return null;
-            else if ("Reset".equals(choice)) for (Filter f : filters) f.setValue(null);
-            else if ("Confirm".equals(choice)) return executeSqlSearch(c, baseSql, filters);
-            else {
-                Filter sel = null;
-                choice = choice.substring(0, choice.indexOf("->")).trim();
-                for (int i = 0; i < size && sel == null; i++) {
-                    Filter f = filters.get(i);
-                    if (f.getLabel().equalsIgnoreCase(choice))
-                        sel = f;
+            switch (choice) {
+                case "Return" -> {return;}
+                case "Reset" -> {
+                    if (mandatory != null) for (Filter f : mandatory) f.setValue(null);
+                    if (optional != null) for (Filter f : optional) f.setValue(null);
                 }
-                if (sel == null)
-                    continue;
-                if (sel.getOptions() == null) {
-                    prompt = "Enter " + sel.getLabel() + " filter value (Leave blank to reset): ";
-                    sel.setValue(getInput(prompt, sel.getType()));
-                } else {
-                    List<String> options = new ArrayList<>(List.of(sel.getOptions()));
-                    options.add("Reset");
-                    prompt = "Enter " + sel.getLabel() + " filter value:";
-                    String res = displayMenu(prompt, options.toArray(new String[0]));
-                    sel.setValue(("Reset".equalsIgnoreCase(res)) ? null : res);
+                case "Confirm" -> {return;}
+                default -> {
+                    choice = choice.substring(0, choice.indexOf("->")).trim();
+                    Filter filter = null;
+                    for (Filter f : filters) if (f.getLabel().equalsIgnoreCase(choice)) filter = f;
+
+                    if (filter.getOptions() == null) {
+                        prompt = "Enter " + filter.getLabel() + " filter value (Leave blank to reset): ";
+                        filter.setValue(getInput(prompt, filter.getType()));
+                    } else {
+                        List<String> options = new ArrayList<>(List.of(filter.getOptions()));
+                        options.add("Reset");
+                        prompt = "Enter " + filter.getLabel() + " filter value: ";
+                        String sel = displayMenu(prompt, options.toArray(new String[0]));
+                        if ("Reset".equalsIgnoreCase(sel)) filter.setValue(null);
+                        else filter.setValue(sel);
+                    }
                 }
             }
         }
     }
 
-    /**
-     * Would append conditional blocks with the format being: 'AND {field name} {operator} ? '. Would also update field values
-     * for filters that uses the LIKE operator to be in the format of: '%{value}%'
-     *
-     * @param sql the SQL statement with it just stopping before where the conditional blocks should be inserted
-     * @param filters the filters to be added to the SQL statement, a filter with a null value would be ignored
-     * @return a new string containing the described conditional blocks
-     */
-    public static String addConditionBlocks(String sql, List<Filter> filters) {
-        if (sql == null || filters == null) return sql;
-        StringBuilder query = new StringBuilder(sql).append(" ");
-
-        // Create condition blocks
-        for (Filter f : filters) {
-            if (f.getValue() == null) continue;
-            if ("LIKE".equalsIgnoreCase(f.getOperator())) {
-                query.append(String.format("AND %s LIKE ? ", f.getName()));
-                f.setValue("%" + f.getValue() + "%");
-            }
-            else query.append(String.format("AND %s %s ? ", f.getName(), f.getOperator()));
-        } return query.toString();
-    }
-
-    /**
-     * Adds the user modified filters to the base query then execute that query
-     *
-     * @param c connection to the database
-     * @param baseSql a select SQL statement containing the wanted fields
-     * @param filters the conditions the user can impose on the query
-     * @return the record(s) that match the user's query
-     */
-    public static ResultSet executeSqlSearch(Connection c, String baseSql, List<Filter> filters) {
-        try {
-            if (c == null || baseSql == null || filters == null) return null;
-
-            // Make sure there is a space between the baseSql to separate the conditions to
-            // be added
-            StringBuilder query = new StringBuilder(baseSql);
-            query.append(" ");
-
-            // if there is no where clause
-            if (!baseSql.toUpperCase().contains("WHERE")) query.append(" WHERE 1=1 ");
-
-            // Create condition blocks
-            List<Field> values = new ArrayList<>();
-            for (Filter f : filters) {
-                if (f.getValue() == null) continue;
-                if ("LIKE".equalsIgnoreCase(f.getOperator())) {
-                    query.append(String.format("AND %s LIKE ? ", f.getName()));
-                    f.setValue("%" + f.getValue() + "%");
-                    values.add(f);
-                }
-                else {
-                    query.append(String.format("AND %s %s ? ", f.getName(), f.getOperator()));
-                    values.add(f);
-                }
-            }
-
-            PreparedStatement ps = prepareStatement(c, query.toString(), values.toArray(new Field[0]));
-            return ps.executeQuery();
-        } catch (SQLException e) {
-            displayDatabaseError(null, e);
-            return null;
-        }
+    public static ResultSet sqlSearch(String headSql, String groupBy, String tailSql, List<Filter> mandatory, List<Filter> optional) {
+        configureFilters(mandatory, optional);
     }
 
     /**
