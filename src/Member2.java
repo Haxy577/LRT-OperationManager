@@ -78,11 +78,11 @@ public class Member2 implements Application {
                 "FROM train t LEFT JOIN passengertrain p ON t.trainno = p.trainno " +
                 "LEFT JOIN servicetrain s ON t.trainno = s.trainno WHERE 1=1 ";
         List<Filter> filters = List.of(
-                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE"),
-                new Filter("t.label", "Train Label", "VARCHAR(80)", null, "LIKE"),
-                new Filter("t.traintyp", "Train Type", "VARCHAR(12)", new String[]{"Passenger", "Service"}, "="),
-                new Filter("t.active", "Train Activation Status", "TINYINT", new String[]{"1", "0"}, "="),
-                new Filter("s.dutytype", "Train Duty Type", "VARCHAR(15)", new String[]{"Inspection", "Maintenance", "Recovery"}, "=")
+                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE", false),
+                new Filter("t.label", "Train Label", "VARCHAR(80)", null, "LIKE", false),
+                new Filter("t.traintyp", "Train Type", "VARCHAR(12)", new String[]{"Passenger", "Service"}, "=", false),
+                new Filter("t.active", "Train Activation Status", "TINYINT", new String[]{"1", "0"}, "=", false),
+                new Filter("s.dutytype", "Train Duty Type", "VARCHAR(15)", new String[]{"Inspection", "Maintenance", "Recovery"}, "=", false)
         );
         try (Connection c = Utils.getSqlConnection()){
             Utils.displaySqlResult(Utils.sqlSearch(c,"Trains", sql, filters));
@@ -93,10 +93,10 @@ public class Member2 implements Application {
         String sql = "SELECT s.taskno, s.taskdate, s.tasktype, s.hours, t.trainno, t.dutytype, t.loadton, s.details " +
                 "FROM servicetask s JOIN servicetrain t ON s.trainno = t.trainno WHERE 1=1 ";
         List<Filter> filters = List.of(
-                new Filter("s.taskno", "Task Reference", "VARCHAR(16)", null, "LIKE"),
-                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE"),
-                new Filter("s.taskdate", "Task Date", "DATE", null, "="),
-                new Filter("s.tasktype", "Task Type", "VARCHAR(15)", new String[]{"Inspection", "Maintenance", "Recovery"}, "=")
+                new Filter("s.taskno", "Task Reference", "VARCHAR(16)", null, "LIKE", false),
+                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE", false),
+                new Filter("s.taskdate", "Task Date", "DATE", null, "=", false),
+                new Filter("s.tasktype", "Task Type", "VARCHAR(15)", new String[]{"Inspection", "Maintenance", "Recovery"}, "=", false)
         );
         try (Connection c = Utils.getSqlConnection()){
             Utils.displaySqlResult(Utils.sqlSearch(c,"Service Task", sql, filters));

@@ -178,10 +178,11 @@ public class Utils {
         return menu;
     }
 
-    public static void configureFilters(List<Filter> mandatory, List<Filter> optional) {
+    public static List<Filter> configureFilters(List<Filter> mandatory, List<Filter> optional) {
         List<Filter> filters = new ArrayList<>();
         if (mandatory != null) filters.addAll(mandatory);
         if (optional != null) filters.addAll(optional);
+        if (filters.isEmpty()) return null;
 
         while (true) {
             List<String> menu = createModifiableMenu(new ArrayList<>(filters));
@@ -189,12 +190,21 @@ public class Utils {
             String choice = displayMenu(prompt, menu.toArray(new String[0]));
 
             switch (choice) {
-                case "Return" -> {return;}
+                case "Return" -> {return null;}
                 case "Reset" -> {
                     if (mandatory != null) for (Filter f : mandatory) f.setValue(null);
                     if (optional != null) for (Filter f : optional) f.setValue(null);
                 }
-                case "Confirm" -> {return;}
+                case "Confirm" -> {
+                    List<Filter> configured = new ArrayList<>();
+
+                    // add filters before the having clause
+                    for (Filter f : filters) if (f.getValue() != null && !f.isHaving()) configured.add(f);
+
+                    // add filters on the having clause
+                    for (Filter f : filters) if (f.getValue() != null && f.isHaving()) configured.add(f);
+                    return configured;
+                }
                 default -> {
                     choice = choice.substring(0, choice.indexOf("->")).trim();
                     Filter filter = null;
@@ -216,8 +226,49 @@ public class Utils {
         }
     }
 
-    public static ResultSet sqlSearch(String headSql, String groupBy, String tailSql, List<Filter> mandatory, List<Filter> optional) {
-        configureFilters(mandatory, optional);
+    public static ResultSet sqlSearch(Connection c, String headSql, String groupBy, String tailSql, List<Filter> mandatory, List<Filter> optional) {
+        List<Filter> filters = configureFilters(mandatory, optional);
+        if (filters == null) return null;
+        StringBuilder query = new StringBuilder(headSql.trim());
+
+        // add condition blocks for optional where clause filters
+        if (optional != null) for (Filter f : optional) if (!f.isHaving()) appendClause(query, "WHERE", f);
+
+        // append the groupBy clause if there is
+        if (groupBy != null) {
+            query.append(" ").append(groupBy.trim());
+            // add condition blocks for optional having clause filters
+            if (optional != null) for (Filter f : optional) if (f.isHaving()) appendClause(query, "HAVING", f);
+        }
+
+        // append the tailing sql statement if there is
+        if (tailSql != null) query.append(" ").append(tailSql.trim());
+
+        // execute the search
+        try {
+            PreparedStatement ps = prepareStatement(c, query.toString(), filters.toArray(new Field[0]));
+            if (ps == null) return null;
+            return ps.executeQuery();
+        } catch (SQLException e) {
+            displayDatabaseError(null, e);
+            return null;
+        }
+    }
+
+    public static void appendClause(StringBuilder query, String keyword, Filter filter) {
+        if (filter == null || filter.getValue() == null) return;
+        keyword = keyword.toUpperCase().trim();
+        boolean hasKeyword = query.toString().contains(keyword);
+        query.append(hasKeyword ? " AND " : String.format(" %s ", keyword));
+
+        if ("LIKE".equalsIgnoreCase(filter.getOperator())) {
+            query.append(String.format("%s LIKE ?", filter.getName()));
+            String val = filter.getValue().toString();
+            if (!val.startsWith("%") || !val.endsWith("%"))
+                filter.setValue("%".concat(val).concat("%"));
+        } else {
+            query.append(String.format("%s %s ?", filter.getName(), filter.getOperator()));
+        }
     }
 
     /**
@@ -377,6 +428,7 @@ public class Utils {
             ps.setObject(1, field.getValue(), field.getSqlType());
             return ps.executeQuery().next();
         } catch (SQLException e) {
+            displayDatabaseError(null, e);
             return false;
         }
     }
