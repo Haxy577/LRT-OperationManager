@@ -225,6 +225,29 @@ public class Utils {
     }
 
     /**
+     * Would append conditional blocks with the format being: 'AND {field name} {operator} ? '. Would also update field values
+     * for filters that uses the LIKE operator to be in the format of: '%{value}%'
+     *
+     * @param sql the SQL statement with it just stopping before where the conditional blocks should be inserted
+     * @param filters the filters to be added to the SQL statement, a filter with a null value would be ignored
+     * @return a new string containing the described conditional blocks
+     */
+    public static String addConditionBlocks(String sql, List<Filter> filters) {
+        if (sql == null || filters == null) return sql;
+        StringBuilder query = new StringBuilder(sql).append(" ");
+
+        // Create condition blocks
+        for (Filter f : filters) {
+            if (f.getValue() == null) continue;
+            if ("LIKE".equalsIgnoreCase(f.getOperator())) {
+                query.append(String.format("AND %s LIKE ? ", f.getName()));
+                f.setValue("%" + f.getValue() + "%");
+            }
+            else query.append(String.format("AND %s %s ? ", f.getName(), f.getOperator()));
+        } return query.toString();
+    }
+
+    /**
      * Adds the user modified filters to the base query then execute that query
      *
      * @param c connection to the database
