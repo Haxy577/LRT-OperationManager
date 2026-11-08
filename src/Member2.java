@@ -31,15 +31,12 @@ public class Member2 implements Application {
     @Override
     public void menu() {
         while (true) {
-            String[] options = {
-                    "Manage Trains",
-                    "Manage Support Tasks",
-                    "Exit"
-            };
+            String[] options = {"Manage Trains", "Manage Support Tasks", "Generate Report", "Exit"};
             String prompt = "Choose which category you want to manage:";
             switch (Utils.displayMenu(prompt, options)) {
                 case "Manage Trains" -> trainMenu();
                 case "Manage Support Tasks" -> taskMenu();
+                case "Generate Report" -> generateReport();
                 default -> {return;}
             }
         }
@@ -73,19 +70,39 @@ public class Member2 implements Application {
         }
     }
 
+    private void generateReport() {
+        String sql = "SELECT t.trainno, t.label, t.traintyp, " +
+                "COUNT(c.callno) AS callcount, COUNT(DISTINCT p.stncode) AS visitedstation, MIN(c.arrat) AS earliest, MAX(c.arrat) AS latest " +
+                "FROM train t LEFT JOIN traincall c ON t.trainno = c.trainno AND c.arrat >= ? AND c.arrat <= ? LEFT JOIN platform p ON c.platno = p.platno ";
+        String groupBy = "GROUP BY t.trainno";
+        String tail = "ORDER BY callcount DESC, t.trainno ASC;";
+        List<Filter> mandatory = List.of(
+                new Filter("c.arrat", "Start Date", "DATETIME", null, ">=", false),
+                new Filter("c.arrat", "End Date", "DATETIME", null, "<=", false)
+        );
+        List<Filter> optional = List.of(
+                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE", false),
+                new Filter("t.traintyp", "Train Type", "VARCHAR(12)", new String[]{"Passenger", "Service"}, "=", false),
+                new Filter("callcount", "Minimum Call Count", "INT UNSIGNED", null, ">=", true)
+        );
+        try (Connection c = Utils.getSqlConnection()){
+            Utils.displaySqlResult(Utils.sqlSearch(c, sql, groupBy, tail, mandatory, optional));
+        } catch (SQLException e) {Utils.displayDatabaseError(null, e);}
+    }
+
     private void searchTrain() {
         String sql = "SELECT t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, t.active " +
                 "FROM train t LEFT JOIN passengertrain p ON t.trainno = p.trainno " +
-                "LEFT JOIN servicetrain s ON t.trainno = s.trainno WHERE 1=1 ";
+                "LEFT JOIN servicetrain s ON t.trainno = s.trainno";
         List<Filter> filters = List.of(
-                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE"),
-                new Filter("t.label", "Train Label", "VARCHAR(80)", null, "LIKE"),
-                new Filter("t.traintyp", "Train Type", "VARCHAR(12)", new String[]{"Passenger", "Service"}, "="),
-                new Filter("t.active", "Train Activation Status", "TINYINT", new String[]{"1", "0"}, "="),
-                new Filter("s.dutytype", "Train Duty Type", "VARCHAR(15)", new String[]{"Inspection", "Maintenance", "Recovery"}, "=")
+                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE", false),
+                new Filter("t.label", "Train Label", "VARCHAR(80)", null, "LIKE", false),
+                new Filter("t.traintyp", "Train Type", "VARCHAR(12)", new String[]{"Passenger", "Service"}, "=", false),
+                new Filter("t.active", "Train Activation Status", "TINYINT", new String[]{"1", "0"}, "=", false),
+                new Filter("s.dutytype", "Train Duty Type", "VARCHAR(15)", new String[]{"Inspection", "Maintenance", "Recovery"}, "=", false)
         );
         try (Connection c = Utils.getSqlConnection()){
-            Utils.displaySqlResult(Utils.sqlSearch(c,"Trains", sql, filters));
+            Utils.displaySqlResult(Utils.sqlSearch(c, sql, null, null, null, filters));
         } catch (SQLException e) {Utils.displayDatabaseError(null, e);}
     }
 
@@ -93,13 +110,13 @@ public class Member2 implements Application {
         String sql = "SELECT s.taskno, s.taskdate, s.tasktype, s.hours, t.trainno, t.dutytype, t.loadton, s.details " +
                 "FROM servicetask s JOIN servicetrain t ON s.trainno = t.trainno WHERE 1=1 ";
         List<Filter> filters = List.of(
-                new Filter("s.taskno", "Task Reference", "VARCHAR(16)", null, "LIKE"),
-                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE"),
-                new Filter("s.taskdate", "Task Date", "DATE", null, "="),
-                new Filter("s.tasktype", "Task Type", "VARCHAR(15)", new String[]{"Inspection", "Maintenance", "Recovery"}, "=")
+                new Filter("s.taskno", "Task Reference", "VARCHAR(16)", null, "LIKE", false),
+                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE", false),
+                new Filter("s.taskdate", "Task Date", "DATE", null, "=", false),
+                new Filter("s.tasktype", "Task Type", "VARCHAR(15)", new String[]{"Inspection", "Maintenance", "Recovery"}, "=", false)
         );
         try (Connection c = Utils.getSqlConnection()){
-            Utils.displaySqlResult(Utils.sqlSearch(c,"Service Task", sql, filters));
+            Utils.displaySqlResult(Utils.sqlSearch(c, sql, null, null, null, filters));
         } catch (SQLException e) {Utils.displayDatabaseError(null, e);}
     }
 
@@ -163,8 +180,10 @@ public class Member2 implements Application {
                     case "Return" -> {return;}
                     case "Reset" -> {for (String k : fields.keySet()) fields.get(k).setValue(originalValues.get(k));}
                     case "Confirm" -> {
+                        if (!Utils.checkAllFields(active)) continue;
                         boolean hasTypeChange = !originalValues.get("Train Type").toString().equalsIgnoreCase(type);
                         saveTrainUpdate(c, fields, hasTypeChange);
+                        return;
                     }
                     default -> {
                         String key = choice.substring(0, choice.indexOf("->")).trim();
@@ -259,6 +278,7 @@ public class Member2 implements Application {
                     case "Return" -> {return;}
                     case "Reset" -> {for (String k : fields.keySet()) fields.get(k).setValue(originalValues.get(k));}
                     case "Confirm" -> {
+                        if (!Utils.checkAllFields(new ArrayList<>(fields.values()))) continue;
                         String update = "UPDATE servicetask SET taskdate = ?, tasktype = ?, hours = ?, details = ?, revno = revno + 1 WHERE revno = ? AND taskno = ?;";
                         try {
                             c.setAutoCommit(false);
@@ -368,6 +388,7 @@ public class Member2 implements Application {
                     case "Return" -> {return;}
                     case "Reset" -> {for (Field f : fields.values()) f.setValue(null);}
                     case "Confirm" -> {
+                        if (!Utils.checkAllFields(active)) continue;
                         saveTrainRecord(c, new ArrayList<>(fields.values()));
                         return;
                     }
@@ -474,6 +495,7 @@ public class Member2 implements Application {
                     case "Return" -> {return;}
                     case "Reset" -> {for (Field f : fields.values()) f.setValue(null);}
                     case "Confirm" -> {
+                        if (!Utils.checkAllFields(new ArrayList<>(fields.values()))) continue;
                         c.setAutoCommit(false);
 
                         boolean res = Utils.modifyTable(c, sql, new ArrayList<>(fields.values()));
