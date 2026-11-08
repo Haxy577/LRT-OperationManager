@@ -31,15 +31,12 @@ public class Member2 implements Application {
     @Override
     public void menu() {
         while (true) {
-            String[] options = {
-                    "Manage Trains",
-                    "Manage Support Tasks",
-                    "Exit"
-            };
+            String[] options = {"Manage Trains", "Manage Support Tasks", "Generate Report", "Exit"};
             String prompt = "Choose which category you want to manage:";
             switch (Utils.displayMenu(prompt, options)) {
                 case "Manage Trains" -> trainMenu();
                 case "Manage Support Tasks" -> taskMenu();
+                case "Generate Report" -> generateReport();
                 default -> {return;}
             }
         }
@@ -71,6 +68,26 @@ public class Member2 implements Application {
                 default -> {return;}
             }
         }
+    }
+
+    private void generateReport() {
+        String sql = "SELECT t.trainno, t.label, t.traintyp, " +
+                "COUNT(c.callno) AS callcount, COUNT(DISTINCT p.stncode) AS visitedstation, MIN(c.arrat) AS earliest, MAX(c.arrat) AS latest " +
+                "FROM train t LEFT JOIN traincall c ON t.trainno = c.trainno AND c.arrat >= ? AND c.arrat <= ? LEFT JOIN platform p ON c.platno = p.platno ";
+        String groupBy = "GROUP BY t.trainno";
+        String tail = "ORDER BY callcount DESC, t.trainno ASC;";
+        List<Filter> mandatory = List.of(
+                new Filter("c.arrat", "Start Date", "DATETIME", null, ">=", false),
+                new Filter("c.arrat", "End Date", "DATETIME", null, "<=", false)
+        );
+        List<Filter> optional = List.of(
+                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE", false),
+                new Filter("t.traintyp", "Train Type", "VARCHAR(12)", new String[]{"Passenger", "Service"}, "=", false),
+                new Filter("callcount", "Minimum Call Count", "INT UNSIGNED", null, ">=", true)
+        );
+        try (Connection c = Utils.getSqlConnection()){
+            Utils.displaySqlResult(Utils.sqlSearch(c, sql, groupBy, tail, mandatory, optional));
+        } catch (SQLException e) {Utils.displayDatabaseError(null, e);}
     }
 
     private void searchTrain() {
