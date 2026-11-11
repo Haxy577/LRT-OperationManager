@@ -55,11 +55,95 @@ public class Member3 implements Application{
     }
 
     private void createTrainCall() {
-        // try (Connection c = Utils.getSqlConnection()){
+        List<Field> fields = new ArrayList<>();
+        fields.add(new Field("callno", "Call Reference", "VARCHAR(16)"));
+        fields.add(new Field("trainno", "Train Reference", "VARCHAR(12)"));
+        fields.add(new Field("platno", "Platform Reference", "VARCHAR(12)"));
+        fields.add(new Field("arrat", "Arrival Time", "DATETIME"));
+        fields.add(new Field("remarks", "Remarks", "VARCHAR(255)"));
+        try (Connection c = Utils.getSqlConnection()){
+            // String sql = "insert into traincall(callno, trainno, platno, arrat, depat, status, remarks, revno) values ('C123', )";
+            Boolean isRunning = true;
+            while (isRunning) {
+                List<String> options = Utils.createModifiableMenu(fields);
+                int choice = Utils.getIntChoice("Modify Train Call details, then choose 'Confirm':", options.toArray(new String[0]));
+                int totalFields = fields.size();
 
-        // } catch (SQLException e) {
-        //     Utils.displayDatabaseError(null, e);
-        // }
+                if (choice == totalFields) {
+                    for (Field f : fields) f.setValue(null);
+                } else if (choice == totalFields + 1) {
+                    List<Field> requiredFields = new ArrayList<>();
+                    for (Field f : fields) {
+                        if (!"remarks".equals(f.getName())) {
+                            requiredFields.add(f);
+                        }
+                    }
+                    if (!Utils.checkAllFields(requiredFields)) 
+                        continue;
+
+                    Field callno = fields.get(0);  // callno
+                    Field trainno = fields.get(1); // trainno
+                    Field platno = fields.get(2);  // platno
+                    Field arrat = fields.get(3);   // arrat
+                    Field remarks = fields.get(4); // remarks
+
+                    Field depatField = new Field("depat", "Departure Time", "DATETIME");
+                    depatField.setValue(null);
+
+                    Field statusField = new Field("status", "Status", "VARCHAR(15)");
+                    statusField.setValue("Arrived");
+
+                    Field revnoField = new Field("revno", "Revision", "INT");
+                    revnoField.setValue(1);
+
+                    List<Field> insertValues = List.of(callno, trainno, platno, arrat, depatField, statusField, remarks, revnoField);
+
+                    String sql = "INSERT INTO traincall (callno, trainno, platno, arrat, depat, status, remarks, revno) VALUES (?, ?, ?, ?, ?, ?, ?, ?);";
+                    
+                    if (Utils.modifyTable(c, sql, insertValues)) {
+                        System.out.println("Train Call successfully created!");
+                        return;
+                    }
+                } else if (choice == totalFields + 2) {
+                    return;
+                } else {
+                    Field selectedField = fields.get(choice);
+                    handleTrainCallInput(c, selectedField);
+                }
+            }
+        } catch (SQLException e) {
+            Utils.displayDatabaseError(null, e);
+        }
+    }
+
+    private void handleTrainCallInput(Connection c, Field field) {
+        switch (field.getName()) {
+            case "callno" -> {
+                while (true) {
+                    Utils.updateValue(field);
+                    if (field.getValue() == null) return;
+                    if (!Utils.doesRecordExist(c, "traincall", field)) break;
+                    Utils.displayInputError("IDENTIFIER");
+                }
+            }
+            case "trainno" -> {
+                while (true) {
+                    Utils.updateValue(field);
+                    if (field.getValue() == null) return;
+                    if (Utils.doesRecordExist(c, "train", field)) break;
+                    Utils.displayInputError("NO_RECORD");
+                }
+            }
+            case "platno" -> {
+                while (true) {
+                    Utils.updateValue(field);
+                    if (field.getValue() == null) return;
+                    if (Utils.doesRecordExist(c, "platform", field)) break;
+                    Utils.displayInputError("NO_RECORD");
+                }
+            }
+            default -> Utils.updateValue(field);
+        }
     }
 
     private void searchTrainCall() {
