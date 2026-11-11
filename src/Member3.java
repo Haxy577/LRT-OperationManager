@@ -42,14 +42,12 @@ public class Member3 implements Application{
         };
         while (isRunning) {
             switch (Utils.displayMenu("Select Option: ", options)) {
-                case "Create Train Call":   createTrainCall();  break;
-                case "Search Train Call":   searchTrainCall();  break;
-                case "Record Departure":    recordDeparture();  break;
-                case "Edit Train Call":     editTrainCall();    break;
-                case "Delete Train Call":   deleteTrainCall();  break;
-                default: 
-                    isRunning = false;  
-                    break;
+                case "Create Train Call" -> createTrainCall();
+                case "Search Train Call" -> searchTrainCall();
+                case "Record Departure" -> recordDeparture();
+                case "Edit Train Call" -> editTrainCall();
+                case "Delete Train Call" -> deleteTrainCall();
+                default -> isRunning = false;
             }
         }
     }
@@ -116,6 +114,56 @@ public class Member3 implements Application{
         }
     }
 
+    private void searchTrainCall() {
+        String sql = "SELECT tc.callno, tc.trainno, p.stncode, tc.platno, p.directn, tc.arrat, tc.depat, tc.status, LEFT(tc.remarks, 20) AS remarks, tc.revno " +
+                "FROM traincall tc JOIN platform p ON tc.platno = p.platno WHERE 1=1 ";
+        List<Filter> filters = List.of(
+            new Filter("tc.callno", "Call Reference", "VARCHAR(16)", null, "LIKE", false),    
+            new Filter("tc.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE", false),
+            new Filter("p.stncode", "Station Code", "VARCHAR(8)", null, "LIKE", false),
+            new Filter("tc.platno", "Platform Reference", "VARCHAR(12)", null, "LIKE", false),
+            new Filter("p.directn", "Direction", "VARCHAR(15)", new String[]{"Northbound", "Southbound"}, "=", false),
+            new Filter("tc.status", "State / Status", "VARCHAR(15)", new String[]{"Arrived", "Departed"}, "=", false),
+            new Filter("tc.arrat", "Start Arrival Date", "DATE", null, ">=", false),
+            new Filter("tc.arrat", "End Arrival Date", "DATE", null, "<=", false)
+        );
+        try (Connection c = Utils.getSqlConnection()){
+            
+            // Scanner scanner = new Scanner(System.in);
+            // System.out.print("Enter Call Reference: ");
+            // String filter = scanner.nextLine();
+
+            // String sql = "SELECT * FROM traincall WHERE callno = ?";
+
+            // try (PreparedStatement ps = c.prepareStatement(sql)) {
+            //     ps.setString(1, filter);
+                
+            //     try (ResultSet result = ps.executeQuery()) {
+            //         while (result.next()) {
+            //             String callno = result.getString("callno");
+            //             System.out.println(callno);
+            //         }
+            //     }
+            // }
+            Utils.displaySqlResult(Utils.sqlSearch(c, sql, null, null, null, filters));
+        } catch (SQLException e) {
+            Utils.displayDatabaseError(null, e);
+        }
+    }
+
+    private void recordDeparture() {
+
+    }
+
+    private void editTrainCall() {
+
+    }
+
+    private void deleteTrainCall() {
+
+    }
+
+    // helper functions
     private void handleTrainCallInput(Connection c, Field field) {
         switch (field.getName()) {
             case "callno" -> {
@@ -146,19 +194,5 @@ public class Member3 implements Application{
         }
     }
 
-    private void searchTrainCall() {
 
-    }
-
-    private void recordDeparture() {
-
-    }
-
-    private void editTrainCall() {
-
-    }
-
-    private void deleteTrainCall() {
-
-    }
 }
