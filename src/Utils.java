@@ -489,7 +489,7 @@ public class Utils {
     /**
      * Deletes a record in a table with the specified field and value combinations.
      * Could also check if other tables depend on this record,
-     * if it does then it does not delete the record.
+     * if it does, then it does not delete the record.
      *
      * @param table the table of the record to be deleted
      * @param relatedTables checks these tables first if the value exists there. Can be null indicating to not check any tables

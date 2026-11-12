@@ -312,6 +312,27 @@ public class Member2 implements Application {
                 if (choice == null) return;
                 ref.setValue(choice);
 
+                if (!Utils.doesRecordExist(c, "train", ref)) {
+                    Utils.displayInputError("NO_RECORD");
+                    deleteTrain();
+                    return;
+                }
+
+                // show the record to be deleted
+                String sql = "SELECT t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, t.active " +
+                        "FROM train t LEFT JOIN passengertrain p ON t.trainno = p.trainno " +
+                        "LEFT JOIN servicetrain s ON t.trainno = s.trainno " +
+                        "WHERE t.trainno = ?;";
+
+                try (PreparedStatement ps = Utils.prepareStatement(c, sql, new Field[]{ref})) {
+                    Utils.displaySqlResult(ps.executeQuery());
+                }
+
+                // confirm if the user wants to delete the record
+                String[] choices = {"Yes", "No"};
+                String confirm = Utils.displayMenu("Are you sure you want to delete this record?", choices);
+                if (confirm.equalsIgnoreCase("No")) return;
+
                 boolean sub = false;
 
                 if (Utils.doesRecordExist(c, "passengertrain", ref)) {
@@ -334,6 +355,8 @@ public class Member2 implements Application {
     private void deleteTask() {
         String prompt = "Input the Task Reference of the record you wish to delete (blank to return): ";
         Field field = new Field("taskno", "Task Reference", "VARCHAR(16)");
+        String sql = "SELECT s.taskno, s.taskdate, s.tasktype, s.hours, t.trainno, t.dutytype, t.loadton, s.details " +
+                "FROM servicetask s JOIN servicetrain t ON s.trainno = t.trainno WHERE s.taskno = ?;";
 
         try (Connection c = Utils.getSqlConnection()) {
             c.setAutoCommit(false);
@@ -341,6 +364,23 @@ public class Member2 implements Application {
                 Object choice = Utils.getInput(prompt, field.getType());
                 if (choice == null) return;
                 field.setValue(choice);
+
+                if (!Utils.doesRecordExist(c, "servicetask", field)) {
+                    Utils.displayInputError("NO_RECORD");
+                    deleteTrain();
+                    return;
+                }
+
+                // show the task to be deleted
+                try (PreparedStatement ps = Utils.prepareStatement(c, sql, new Field[]{field})) {
+                    Utils.displaySqlResult(ps.executeQuery());
+                }
+
+                // confirm if the user wants to delete the record
+                String[] choices = {"Yes", "No"};
+                String confirm = Utils.displayMenu("Are you sure you want to delete this record?", choices);
+                if (confirm.equalsIgnoreCase("No")) return;
+
                 if (Utils.safeDeleteRecord(c, "servicetask", null, field)) {
                     c.commit();
                     return;

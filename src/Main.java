@@ -1,6 +1,5 @@
 public class Main {
     public static void main(String[] args) {
-        Boolean isRunning = true;
         String[] options = {
             "Member 1: Station Management",
             "Member 2: Train Management",
@@ -8,7 +7,7 @@ public class Main {
             "Member 4: Passenger Flow Management",
             "Exit"
         };
-        while (isRunning) {
+        while (true) {
             String choice = Utils.displayMenu("--- LRT Database Application ---", options);
             
             switch (choice) {
@@ -18,7 +17,7 @@ public class Main {
                 case "Member 4: Passenger Flow Management" -> new Member4().menu();
                 case "Exit" -> {
                     System.out.println("Exiting application...");
-                    isRunning = false;
+                    return;
                 }
             }
         }
