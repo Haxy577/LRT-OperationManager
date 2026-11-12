@@ -44,7 +44,7 @@ public class Utils {
     public static int getIntInput(String prompt, int max) {
         while (true) {
             System.out.print("Please enter your choice: ");
-            String input = SCANNER.nextLine();
+            String input = SCANNER.nextLine().trim();
             if (input.matches("^[0-9]+$")) {
                 int choice = Integer.parseInt(input);
                 if (choice >= 1 && choice <= max) {
@@ -185,6 +185,55 @@ public class Utils {
             // display resulting rows
             while (result.next()) displayRow(result, fields);
             System.out.println(divider);
+        } catch (Exception e) {displayDatabaseError(null, e);}
+    }
+
+    /**
+     * Displays each record from the specified result set in a menu like format and prompts the user to select a specific
+     * record according to its row_number value. It would then update the value of the specified identifier based on the chosen
+     * record by the user. If the user were to leave the prompt blank, then it would just set its value to null.
+     *
+     * @param res the result set containing the records to display and select from
+     * @param identifier the field whose value is used as the identifier for each selectable record
+     */
+    public static void retrieveRecordMenu(ResultSet res, Field identifier) {
+        if (res == null) return;
+        try {
+            ResultSetMetaData data = res.getMetaData();
+            LinkedHashMap<String, Integer> fields = getFieldSizes(data, PADDING);
+            String divider = resultDivider(fields);
+            String labels = resultLabels(fields);
+
+            // display result field labels
+            System.out.println("\n" + divider + "\n" + labels + "\n" + divider);
+
+            // store the identifier in a list
+            List<Object> values = new ArrayList<>();
+
+            // display and store the resulting rows
+            while (res.next()) {
+                values.add(res.getObject(identifier.getName()));
+                displayRow(res, fields);
+            } System.out.println(divider);
+
+            // get the input of the user indicating which record they want to select
+            String prompt = "Enter the corresponding row_number of the record you want to select (Leave blank to return): ";
+            int len = values.size();
+            while (true) {
+                System.out.print(prompt);
+                String input = SCANNER.nextLine().trim();
+                if (input.isBlank()) {
+                    identifier.setValue(null);
+                    return;
+                }
+                if (input.matches("^[0-9]+$")) {
+                    int choice = Integer.parseInt(input);
+                    if (choice >= 1 && choice <= len) identifier.setValue(values.get(choice - 1));
+                    return;
+                }
+                // if input is invalid, then print error message
+                System.out.println(RED + "Please enter an integer between 1 to " + len + "!" + RESET);
+            }
         } catch (Exception e) {displayDatabaseError(null, e);}
     }
 
