@@ -94,6 +94,7 @@ public class Member2 implements Application {
         String sql = "SELECT t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, t.active " +
                 "FROM train t LEFT JOIN passengertrain p ON t.trainno = p.trainno " +
                 "LEFT JOIN servicetrain s ON t.trainno = s.trainno";
+        String tail = "ORDER BY s.taskno ASC;";
         List<Filter> filters = List.of(
                 new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE", false),
                 new Filter("t.label", "Train Label", "VARCHAR(80)", null, "LIKE", false),
@@ -102,13 +103,14 @@ public class Member2 implements Application {
                 new Filter("s.dutytype", "Train Duty Type", "VARCHAR(15)", new String[]{"Inspection", "Maintenance", "Recovery"}, "=", false)
         );
         try (Connection c = Utils.getSqlConnection()){
-            Utils.displaySqlResult(Utils.sqlSearch(c, sql, null, null, null, filters));
+            Utils.displaySqlResult(Utils.sqlSearch(c, sql, null, tail, null, filters));
         } catch (SQLException e) {Utils.displayDatabaseError(null, e);}
     }
 
     private void searchTask() {
         String sql = "SELECT s.taskno, s.taskdate, s.tasktype, s.hours, t.trainno, t.dutytype, t.loadton, s.details " +
                 "FROM servicetask s JOIN servicetrain t ON s.trainno = t.trainno WHERE 1=1 ";
+        String tail = "ORDER BY s.taskno ASC;";
         List<Filter> filters = List.of(
                 new Filter("s.taskno", "Task Reference", "VARCHAR(16)", null, "LIKE", false),
                 new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE", false),
@@ -116,7 +118,7 @@ public class Member2 implements Application {
                 new Filter("s.tasktype", "Task Type", "VARCHAR(15)", new String[]{"Inspection", "Maintenance", "Recovery"}, "=", false)
         );
         try (Connection c = Utils.getSqlConnection()){
-            Utils.displaySqlResult(Utils.sqlSearch(c, sql, null, null, null, filters));
+            Utils.displaySqlResult(Utils.sqlSearch(c, sql, null, tail, null, filters));
         } catch (SQLException e) {Utils.displayDatabaseError(null, e);}
     }
 
