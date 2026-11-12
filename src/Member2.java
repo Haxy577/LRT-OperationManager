@@ -91,10 +91,11 @@ public class Member2 implements Application {
     }
 
     private void searchTrain() {
-        String sql = "SELECT t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, t.active " +
+        String sql = "SELECT ROW_NUMBER() OVER (ORDER BY t.trainno ASC) row_num, " +
+                "t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, t.active " +
                 "FROM train t LEFT JOIN passengertrain p ON t.trainno = p.trainno " +
                 "LEFT JOIN servicetrain s ON t.trainno = s.trainno";
-        String tail = "ORDER BY s.taskno ASC;";
+        String tail = "ORDER BY t.trainno ASC;";
         List<Filter> filters = List.of(
                 new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE", false),
                 new Filter("t.label", "Train Label", "VARCHAR(80)", null, "LIKE", false),
@@ -108,7 +109,8 @@ public class Member2 implements Application {
     }
 
     private void searchTask() {
-        String sql = "SELECT s.taskno, s.taskdate, s.tasktype, s.hours, t.trainno, t.dutytype, t.loadton, s.details " +
+        String sql = "SELECT ROW_NUMBER() OVER (ORDER BY t.taskno ASC) row_num, " +
+                "s.taskno, s.taskdate, s.tasktype, s.hours, t.trainno, t.dutytype, t.loadton, s.details " +
                 "FROM servicetask s JOIN servicetrain t ON s.trainno = t.trainno WHERE 1=1 ";
         String tail = "ORDER BY s.taskno ASC;";
         List<Filter> filters = List.of(
