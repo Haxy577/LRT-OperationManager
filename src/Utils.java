@@ -12,6 +12,7 @@ public class Utils {
     private static final String USER = "appuser";
     private static final String PASSWORD = "password";
     private static final Scanner SCANNER = new Scanner(System.in);
+    private static final int PADDING = 2;
 
     public static final String RESET = "\u001b[0m";
     public static final String BOLD = "\u001b[1m";
@@ -34,37 +35,24 @@ public class Utils {
     }
 
     /**
-     * Displays a menu display with the prompt and the choices the user can pick.
-     * Would also handle obtaining a valid input
-     * from the user. It would return the corresponding value of the chosen option.
+     * Gets an integer input of a user that is within the range of 1 to the specified max inclusive [1,max].
      *
-     * @param prompt  an instruction telling the user what to do or what the menu is
-     *                about
-     * @param options array of strings representing the choices to be displayed
-     * @return the chosen option
+     * @param prompt an instruction telling to the user what to do
+     * @param max the maximum number the user can input, inclusive.
+     * @return the valid integer input of the user that is within the specified range
      */
-    public static String displayMenu(String prompt, String[] options) {
-        if (options == null || options.length < 1) {
-            System.err.println("The provided options cannot be null nor empty");
-            return "";
-        }
-
-        System.out.println(prompt);
-        int len = options.length;
-        for (int i = 0; i < len; i++)
-            System.out.printf("  [%d] %s\n", i + 1, options[i]);
-
+    public static int getIntInput(String prompt, int max) {
         while (true) {
             System.out.print("Please enter your choice: ");
             String input = SCANNER.nextLine();
             if (input.matches("^[0-9]+$")) {
                 int choice = Integer.parseInt(input);
-                if (choice >= 1 && choice <= len) {
-                    return options[choice - 1];
+                if (choice >= 1 && choice <= max) {
+                    return choice;
                 }
             }
-            // if input is invalid then print error message
-            System.out.println(RED + "Please enter an integer between 1 to " + len + "!" + RESET);
+            // if input is invalid, then print error message
+            System.out.println(RED + "Please enter an integer between 1 to " + max + "!" + RESET);
         }
     }
 
@@ -81,28 +69,30 @@ public class Utils {
      *         that the user made
      */
     public static int getIntChoice(String prompt, String[] options) {
-        if (options == null || options.length < 1)
+        if (options == null || options.length < 1) {
             System.err.println("The provided options cannot be null nor empty");
-
-        System.out.println(prompt);
+            return -1;
+        } System.out.println(prompt);
         int len = options.length;
-        for (int i = 0; i < len; i++)
-            System.out.printf("  [%d] %s\n", i + 1, options[i]);
+        for (int i = 0; i < len; i++) System.out.printf("  [%d] %s\n", i + 1, options[i]);
+        return getIntInput(prompt, len) - 1;
+    }
 
-        Scanner sc = new Scanner(System.in);
-        while (true) {
-            System.out.print("Please enter your choice: ");
-            String input = sc.nextLine();
-            if (input.matches("^[0-9]+$")) {
-                int choice = Integer.parseInt(input);
-                if (choice >= 1 && choice <= len) {
-                    return choice - 1;
-                }
-            }
-
-            // if input is invalid then print error message
-            System.out.println(RED + "Please enter an integer between 1 to " + len + "!" + RESET);
-        }
+    /**
+     * Displays a menu display with the prompt and the choices the user can pick.
+     * Would also handle obtaining a valid input
+     * from the user. It would return the corresponding value of the chosen option.
+     *
+     * @param prompt  an instruction telling the user what to do or what the menu is
+     *                about
+     * @param options array of strings representing the choices to be displayed
+     * @return the chosen option
+     */
+    public static String displayMenu(String prompt, String[] options) {
+        if (options == null || options.length < 1) {
+            System.err.println("The provided options cannot be null nor empty");
+            return "";
+        } return options[getIntChoice(prompt, options)];
     }
 
     /**
@@ -182,12 +172,10 @@ public class Utils {
      * @param result the result of the executed SQL statement
      */
     public static void displaySqlResult(ResultSet result) {
-        if (result == null)
-            return;
+        if (result == null) return;
         try {
             ResultSetMetaData data = result.getMetaData();
-            final int padding = 2;
-            LinkedHashMap<String, Integer> fields = getFieldSizes(data, padding);
+            LinkedHashMap<String, Integer> fields = getFieldSizes(data, PADDING);
             String divider = resultDivider(fields);
             String labels = resultLabels(fields);
 
