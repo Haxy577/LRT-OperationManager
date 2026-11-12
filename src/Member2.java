@@ -109,7 +109,7 @@ public class Member2 implements Application {
     }
 
     private void searchTask() {
-        String sql = "SELECT ROW_NUMBER() OVER (ORDER BY t.taskno ASC) row_num, " +
+        String sql = "SELECT ROW_NUMBER() OVER (ORDER BY s.taskno ASC) row_num, " +
                 "s.taskno, s.taskdate, s.tasktype, s.hours, t.trainno, t.dutytype, t.loadton, s.details " +
                 "FROM servicetask s JOIN servicetrain t ON s.trainno = t.trainno WHERE 1=1 ";
         String tail = "ORDER BY s.taskno ASC;";

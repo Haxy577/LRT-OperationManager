@@ -106,6 +106,73 @@ public class Utils {
     }
 
     /**
+     * Returns the display size for each column in the specified result set metadata.
+     *
+     * @param data the result set metadata
+     * @param padding an additional amount of space character to be appended to the final size
+     * @return a linked hash map containing column names mapped to their calculated field sizes
+     * @throws SQLException if an error occurs while reading metadata from the result set
+     */
+    public static LinkedHashMap<String, Integer> getFieldSizes(ResultSetMetaData data, int padding) throws SQLException {
+        if (data == null) return new LinkedHashMap<>();
+        int count = data.getColumnCount();
+        LinkedHashMap<String, Integer> sizes = new LinkedHashMap<>(count);
+        for (int i = 1; i <= count; i++) {
+            String name = data.getColumnName(i);
+            int size = Math.max(data.getColumnDisplaySize(i), name.length()) + padding;
+            sizes.put(name, size);
+        } return sizes;
+    }
+
+    /**
+     * Generates a divider based on the specified linked hash map
+     *
+     * @param fields a linked hash map containing column names mapped to their calculated size
+     * @return a string that would be used to indicate the start/end of the table and to separate the labels from the results
+     */
+    public static String resultDivider(LinkedHashMap<String, Integer> fields) {
+        if (fields == null) return "";
+        StringBuilder divider = new StringBuilder("+");
+        for (String f : fields.keySet()) divider.repeat("-", fields.get(f)).append("+");
+        return divider.toString();
+    }
+
+    /**
+     * Generates a string that would contain all the specified fields within the linked hash map and formatted to fit
+     * the resulting table art
+     *
+     * @param fields a linked hash map containing column names mapped to their calculated size
+     * @return a string that would contain the labels for each column
+     */
+    public static String resultLabels(LinkedHashMap<String, Integer> fields) {
+        if (fields == null) return "";
+        StringBuilder labels = new StringBuilder("|");
+        for (String f : fields.keySet()) labels.append(BOLD + f + RESET).repeat(" ", fields.get(f) - f.length()).append("|");
+        return labels.toString();
+    }
+
+    /**
+     * Generates a string representing a single record within the specified result set. It would be formatted
+     * according to the specified linked hashmap of fields
+     *
+     * @param res the result set of an SQL query
+     * @param fields a linked hash map containing column names mapped to their calculated size
+     * @throws SQLException if an error occurred with the specified result set
+     */
+    public static void displayRow(ResultSet res, LinkedHashMap<String, Integer> fields) throws SQLException {
+        if (res == null) return;
+        StringBuilder row = new StringBuilder("|");
+        for (String f : fields.keySet()) {
+            String val = res.getString(f);
+            val = val == null ? "" : val;
+            int width = fields.get(f);
+            int len = val.length();
+            if (len > width) val = val.substring(0, width - 3) + "..."; // truncate string if longer that reserved width
+            row.append(val).repeat(" ", width - len).append("|");
+        } System.out.println(row);
+    }
+
+    /**
      * Displays the results of an SQL statement in the terminal in a formatted
      * manner.
      * It would first display the labels in the result, then every row in the
@@ -119,42 +186,18 @@ public class Utils {
             return;
         try {
             ResultSetMetaData data = result.getMetaData();
-            final int fields = data.getColumnCount();
             final int padding = 2;
-            int[] sizes = new int[fields];
+            LinkedHashMap<String, Integer> fields = getFieldSizes(data, padding);
+            String divider = resultDivider(fields);
+            String labels = resultLabels(fields);
 
             // display result field labels
-            StringBuffer divider = new StringBuffer("+");
-            StringBuffer labels = new StringBuffer("|");
-            for (int i = 1; i <= fields; i++) {
-                String name = data.getColumnName(i);
-                int size = Math.max(data.getColumnDisplaySize(i), name.length());
-                sizes[i - 1] = size;
-                labels.append(BOLD + name + RESET + " ".repeat(size - name.length() + padding) + "|");
-                divider.append("-".repeat(size + padding) + "+");
-            }
-            System.out.println(divider + "\n" + labels + "\n" + divider);
+            System.out.println("\n" + divider + "\n" + labels + "\n" + divider);
 
             // display resulting rows
-            while (result.next()) {
-                StringBuffer row = new StringBuffer("|");
-                for (int i = 1; i <= fields; i++) {
-                    String res = result.getString(i);
-                    if (res == null)
-                        res = "";
-
-                    int width = sizes[i - 1];
-                    if (res.length() > width)
-                        res = res.substring(0, width - 3) + "..."; // if longer than the width, truncate the string
-
-                    row.append(res + " ".repeat(width - res.length() + padding) + "|");
-                }
-                System.out.println(row);
-            }
+            while (result.next()) displayRow(result, fields);
             System.out.println(divider);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        } catch (Exception e) {displayDatabaseError(null, e);}
     }
 
     /**
