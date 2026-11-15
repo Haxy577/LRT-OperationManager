@@ -202,10 +202,7 @@ public class Member3 implements Application{
                         continue;
 
                     // validate depat is after arrat
-                    Timestamp arrat = toTimestamp(fields.get("Arrival Time").getValue());
-                    Timestamp depat = toTimestamp(depatField.getValue());
-                    if (!depat.after(arrat)) {
-                        Utils.displayError("Departure time must be after arrival time (" + arrat + ").");
+                    if (!isValidTimeRange(fields.get("Arrival Time"), depatField)) {
                         continue;
                     }
 
@@ -336,13 +333,8 @@ public class Member3 implements Application{
                         continue;
 
                     // validate arrat and depat inputs if Departed
-                    if ("Departed".equals(currentStatus)) {
-                        Timestamp arrat = toTimestamp(arratField.getValue());
-                        Timestamp depat = toTimestamp(depatField.getValue());
-                        if (!depat.after(arrat)) {
-                            Utils.displayError("Departure time must be after arrival time (" + arrat + ").");
-                            continue;
-                        }
+                    if (!isValidTimeRange(fields.get("Arrival Time"), depatField)) {
+                        continue;
                     }
 
                     String sqlQuery2 = "UPDATE traincall SET arrat = ?, depat = ?, remarks = ?, revno = revno + 1 WHERE callno = ? AND revno = ?";
@@ -433,5 +425,15 @@ public class Member3 implements Application{
                 }
             }
         }
+    }
+
+    private boolean isValidTimeRange(Field arratField, Field depatField) {
+        Timestamp arrat = toTimestamp(arratField.getValue());
+        Timestamp depat = toTimestamp(depatField.getValue());
+        if (arrat != null && depat != null && !depat.after(arrat)) {
+            Utils.displayError("Departure time must be after arrival time (" + arrat + ").");
+            return false;
+        }
+        return true;
     }
 }
