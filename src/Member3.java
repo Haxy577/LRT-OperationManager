@@ -59,7 +59,7 @@ public class Member3 implements Application{
         fields.add(new Field("platno", "Platform Reference", "VARCHAR(12)"));
         fields.add(new Field("arrat", "Arrival Time", "DATETIME"));
         fields.add(new Field("remarks", "Remarks", "VARCHAR(255)"));
-        try (Connection c = Utils.getSqlConnection()){
+        try (Connection c = Utils.getSqlConnection()) {
             // String sql = "insert into traincall(callno, trainno, platno, arrat, depat, status, remarks, revno) values ('C123', )";
             Boolean isRunning = true;
             while (isRunning) {
@@ -127,8 +127,7 @@ public class Member3 implements Application{
             new Filter("tc.arrat", "Start Arrival Date", "DATE", null, ">=", false),
             new Filter("tc.arrat", "End Arrival Date", "DATE", null, "<=", false)
         );
-        try (Connection c = Utils.getSqlConnection()){
-            
+        try (Connection c = Utils.getSqlConnection()) {
             // Scanner scanner = new Scanner(System.in);
             // System.out.print("Enter Call Reference: ");
             // String filter = scanner.nextLine();
@@ -152,7 +151,133 @@ public class Member3 implements Application{
     }
 
     private void recordDeparture() {
+        // Scanner scanner = new Scanner(System.in);
+        // // System.out.print("Enter Call Reference: ");
+        // // String lol = scanner.nextLine();
+        // String lol = "CL250000001";
+        // String sql = "SELECT * FROM traincall WHERE callno = ?";
+        Map<String, Field> fields = new LinkedHashMap<>();
+        fields.put("Call Reference", new Field("callno", "Call Reference", "VARCHAR(16)"));
+        fields.put("Train Reference", new Field("trainno", "Train Reference", "VARCHAR(12)"));
+        fields.put("Platform Reference", new Field("platno", "Platform Reference", "VARCHAR(12)"));
+        fields.put("Arrival Time", new Field("arrat", "Arrival Time", "DATETIME"));
+        fields.put("Departure Time", new Field("depat", "Departure Time", "DATETIME"));
+        fields.put("Status", new Field("status", "Status", "VARCHAR(15)"));
+        fields.put("Revision", new Field("revno", "Revision", "INT"));
 
+        try (Connection c = Utils.getSqlConnection()) {
+            String sqlQuery1 = "SELECT * FROM traincall where callno = ?";
+            Field identifierField = fields.get("Call Reference");
+
+            while (true) {
+                Utils.updateValue(identifierField);
+                if (identifierField.getValue() == null) {
+                    return;
+                } else if (Utils.doesRecordExist(c, "traincall", identifierField)) {
+                    break;
+                }
+                Utils.displayInputError("NO_RECORD");
+            }
+
+            Map<String, Object> origAttributes = Utils.loadValues(c, sqlQuery1, identifierField, fields);
+            if (origAttributes.isEmpty()) { 
+                return;
+            } else if (!"Arrived".equals(fields.get("Status").getValue())) {
+                Utils.displayError("This train call has already departed.");
+                return;
+            }
+
+            System.out.println("Loaded Call -> Train: " + fields.get("Train Reference").getValue()
+                    + " | Platform: " + fields.get("Platform Reference").getValue()
+                    + " | Arrived: " + fields.get("Arrival Time").getValue());
+
+            Field depatField = fields.get("Departure Time");
+            List<Field> editableFields = List.of(depatField);
+            
+            while (true) {
+                List<String> options = Utils.createModifiableMenu(editableFields);
+                int choice = Utils.getIntChoice("Enter Departure Time, then choose 'Confirm':", options.toArray(new String[0]));
+
+                if (choice == 0) { // departure Time
+                    Utils.updateValue(depatField);
+                } else if (choice == 1) { // reset
+                    depatField.setValue(null);
+                } else if (choice == 2) { // confirm
+                    if (!Utils.checkAllFields(editableFields)) 
+                        continue;
+
+                    // validate depat is after arrat
+                    Timestamp arrat = toTimestamp(fields.get("Arrival Time").getValue());
+                    Timestamp depat = toTimestamp(depatField.getValue());
+                    if (!depat.after(arrat)) {
+                        Utils.displayError("Departure time must be after arrival time (" + arrat + ").");
+                        continue;
+                    }
+
+                    // set status to Departed
+                    Field statusField = fields.get("Status");
+                    statusField.setValue("Departed");
+                    Field revnoField = fields.get("Revision");
+
+                    String updateSql = "UPDATE traincall SET depat = ?, status = ?, revno = revno + 1 WHERE callno = ? AND revno = ?";
+                    if (Utils.modifyTable(c, updateSql, List.of(depatField, statusField, identifierField, revnoField))) {
+                        System.out.println("Departure successfully recorded!");
+                        return;
+                    }
+                } else if (choice == 3) { // Return
+                    return;
+                }
+            }
+            
+            // PreparedStatement ps = c.prepareStatement(sql);
+            // ps.setString(1, lol);
+
+            // try (ResultSet result = ps.executeQuery()) {
+            //     if (result.next()) {
+            //         String callno = result.getString("callno");
+            //         String trainno = result.getString("trainno");
+            //         String platno = result.getString("platno");
+            //         String status = result.getString("status");
+
+            //         System.out.println("Call Reference: " + callno);
+            //         System.out.println("Train Reference: " + trainno);
+            //         System.out.println("Platform Reference: " + platno);
+            //         System.out.println("Status: " + status);
+
+            //         System.out.println("wat u wanna update?");
+            //         System.out.println("1. Status");
+            //         System.out.println("2. Departed At");
+                    
+            //         int choice = scanner.nextInt();
+
+            //         String sqlQuery = "UPDATE traincall SET ";
+            //         if (choice == 1) {
+            //             sqlQuery = sqlQuery + "status = 'Departed' WHERE callno = " + lol;
+            //             PreparedStatement ps2 = c.prepareStatement(sqlQuery);
+            //             int rows = ps2.executeUpdate();
+            //             if (rows > 0) {
+            //                 System.out.println("Status updated successfully.");
+            //             }
+            //         } else if (choice == 2) {
+            //             System.out.println("Enter Date");
+            //             String newDate = scanner.nextLine();
+            //             sqlQuery = sqlQuery + "depat = ? WHERE callno = " + lol;
+            //             PreparedStatement ps2 = c.prepareStatement(sqlQuery);
+            //             ps2.setString(1, newDate);
+
+            //             int rows = ps2.executeUpdate();
+            //             if (rows > 0) {
+            //                 System.out.println("DepAt updated successfully.");
+            //             }
+            //         }
+            //     } else {
+            //         System.out.println("Record not found.");
+            //     }
+            // }
+        } catch (SQLException e) {
+            Utils.displayDatabaseError(null, e);
+        }
+        // scanner.close();
     }
 
     private void editTrainCall() {
@@ -194,5 +319,12 @@ public class Member3 implements Application{
         }
     }
 
-
+    private Timestamp toTimestamp(Object val) {
+        if (val instanceof Timestamp ts) 
+            return ts;
+        if (val instanceof java.time.LocalDateTime ldt) 
+            return Timestamp.valueOf(ldt);
+        
+        return null;
+    }
 }
