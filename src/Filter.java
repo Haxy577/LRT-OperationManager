@@ -5,6 +5,7 @@
  */
 public class Filter extends Field {
     private final String[] options;
+    private final String referenceSql;
     private final String operator;
     private final boolean isHaving;
 
@@ -22,6 +23,42 @@ public class Filter extends Field {
     public Filter(String fieldName, String label, String type, String[] options, String operator, boolean isHaving) {
         super(fieldName, label, type);
         this.options = options;
+        this.referenceSql = null;
+        this.operator = operator;
+        this.isHaving = isHaving;
+    }
+
+    /**
+     * Creates a filter object with the specified values.
+     *
+     * @param fieldName the name of the field/column in the database
+     * @param label the name to be displayed in the filter menu
+     * @param type the data type of the field in the database
+     * @param referenceSql a SQL statement wherein the user can choose a specific record based on the result of the query
+     * @param operator the logical operator to be used (e.g. LIKE, IS, =, !=, <, <=, >=, >=)
+     * @param isHaving true if the filter is imposed on the HAVING clause, false otherwise if it is imposed in the WHERE clause
+     */
+    public Filter(String fieldName, String label, String type, String referenceSql, String operator, boolean isHaving) {
+        super(fieldName, label, type);
+        this.options = null;
+        this.referenceSql = referenceSql;
+        this.operator = operator;
+        this.isHaving = isHaving;
+    }
+
+    /**
+     * Creates a filter object with the specified values.
+     *
+     * @param fieldName the name of the field/column in the database
+     * @param label the name to be displayed in the filter menu
+     * @param type the data type of the field in the database
+     * @param operator the logical operator to be used (e.g. LIKE, IS, =, !=, <, <=, >=, >=)
+     * @param isHaving true if the filter is imposed on the HAVING clause, false otherwise if it is imposed in the WHERE clause
+     */
+    public Filter(String fieldName, String label, String type, String operator, boolean isHaving) {
+        super(fieldName, label, type);
+        this.options = null;
+        this.referenceSql = null;
         this.operator = operator;
         this.isHaving = isHaving;
     }
