@@ -556,7 +556,7 @@ public class Member2 implements Application {
         Map<String, Field> fields = new LinkedHashMap<>();
         fields.put("Task Reference", new Field("taskno", "Task Reference", "VARCHAR(16)"));
         fields.put("Train Reference", new Field("trainno", "Train Reference", "VARCHAR(12)"));
-        fields.put("Task Date", new Field("taskdate", "Task Date", "DATE"));
+        fields.put("Task Date", new Field("taskdate", "Task Date", "DATE PAST"));
         fields.put("Task Type", new Field("tasktype", "Task Type", "VARCHAR(15)"));
         fields.put("Duration in Hours", new Field("hours", "Duration in Hours", "DECIMAL(8,2) UNSIGNED"));
         fields.put("Details", new Field("details", "Details", "VARCHAR(255)"));

@@ -1,5 +1,7 @@
 import java.sql.*;
 import java.sql.Date;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 
 /**
@@ -436,6 +438,7 @@ public class Utils {
             return null;
         type = type.trim().toUpperCase();
         boolean isUnsigned = type.contains("UNSIGNED");
+        boolean noFuture = type.contains("PAST");
         String error = "";
 
         try {
@@ -459,10 +462,18 @@ public class Utils {
             }
             else if (type.contains("DATETIME")) {
                 error = "DATETIME";
-                return Timestamp.valueOf(input);
+                Timestamp val = Timestamp.valueOf(input);
+                if (noFuture && val.toLocalDateTime().isAfter(LocalDateTime.now())) {
+                    displayInputError("FUTURE");
+                    return null;
+                } return val;
             } else if (type.contains("DATE")) {
                 error = "DATE";
-                return Date.valueOf(input);
+                Date val = Date.valueOf(input);
+                if (noFuture && val.toLocalDate().isAfter(LocalDate.now())) {
+                    displayInputError("FUTURE");
+                    return null;
+                } return val;
             } else if (type.contains("VARCHAR")) { // if its a varchar with a specified size
                 error = "VARCHAR";
                 int len = Integer.parseInt(type.substring(type.indexOf('(') + 1, type.indexOf(')')));
@@ -508,6 +519,7 @@ public class Utils {
             case "REFERENCE" -> "Cannot modify this field, this value is being referenced in other table(s)";
             case "PRECISION" -> "The decimal is to large/precise. Please enter a smaller/less precise number";
             case "OVERFLOW" -> "Please input a smaller number";
+            case "FUTURE" -> "Date/time cannot be in the future";
             case "NULL" -> "Please input a value";
             default -> "Error";
         };
