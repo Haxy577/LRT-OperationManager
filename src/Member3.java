@@ -156,15 +156,7 @@ public class Member3 implements Application{
         // // String lol = scanner.nextLine();
         // String lol = "CL250000001";
         // String sql = "SELECT * FROM traincall WHERE callno = ?";
-        Map<String, Field> fields = new LinkedHashMap<>();
-        fields.put("Call Reference", new Field("callno", "Call Reference", "VARCHAR(16)"));
-        fields.put("Train Reference", new Field("trainno", "Train Reference", "VARCHAR(12)"));
-        fields.put("Platform Reference", new Field("platno", "Platform Reference", "VARCHAR(12)"));
-        fields.put("Arrival Time", new Field("arrat", "Arrival Time", "DATETIME"));
-        fields.put("Departure Time", new Field("depat", "Departure Time", "DATETIME"));
-        fields.put("Status", new Field("status", "Status", "VARCHAR(15)"));
-        fields.put("Remarks", new Field("remarks", "Remarks", "VARCHAR(255)"));
-        fields.put("Revision", new Field("revno", "Revision", "INT"));
+        Map<String, Field> fields = createCallFields();
 
         try (Connection c = Utils.getSqlConnection()) {
             String sqlQuery1 = "SELECT * FROM traincall where callno = ?";
@@ -284,15 +276,7 @@ public class Member3 implements Application{
     }
 
     private void editTrainCall() {
-        Map<String, Field> fields = new LinkedHashMap<>();
-        fields.put("Call Reference", new Field("callno", "Call Reference", "VARCHAR(16)"));
-        fields.put("Train Reference", new Field("trainno", "Train Reference", "VARCHAR(12)"));
-        fields.put("Platform Reference", new Field("platno", "Platform Reference", "VARCHAR(12)"));
-        fields.put("Arrival Time", new Field("arrat", "Arrival Time", "DATETIME"));
-        fields.put("Departure Time", new Field("depat", "Departure Time", "DATETIME"));
-        fields.put("Status", new Field("status", "Status", "VARCHAR(15)"));
-        fields.put("Remarks", new Field("remarks", "Remarks", "VARCHAR(255)"));
-        fields.put("Revision", new Field("revno", "Revision", "INT"));
+        Map<String, Field> fields = createCallFields();
 
         try (Connection c = Utils.getSqlConnection()) {
             String sqlQuery1 = "SELECT * FROM traincall where callno = ?";
@@ -422,6 +406,19 @@ public class Member3 implements Application{
             return Timestamp.valueOf(ldt);
         
         return null;
+    }
+
+    private Map<String, Field> createCallFields() {
+        Map<String, Field> fields = new LinkedHashMap<>();
+        fields.put("Call Reference", new Field("callno", "Call Reference", "VARCHAR(16)"));
+        fields.put("Train Reference", new Field("trainno", "Train Reference", "VARCHAR(12)"));
+        fields.put("Platform Reference", new Field("platno", "Platform Reference", "VARCHAR(12)"));
+        fields.put("Arrival Time", new Field("arrat", "Arrival Time", "DATETIME"));
+        fields.put("Departure Time", new Field("depat", "Departure Time", "DATETIME"));
+        fields.put("Status", new Field("status", "Status", "VARCHAR(15)"));
+        fields.put("Remarks", new Field("remarks", "Remarks", "VARCHAR(255)"));
+        fields.put("Revision", new Field("revno", "Revision", "INT"));
+        return fields;
     }
 
     private void normalizeTimestamps(Map<String, Field> fields, Map<String, Object> origAttributes) {
