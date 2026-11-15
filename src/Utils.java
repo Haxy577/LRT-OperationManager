@@ -107,7 +107,7 @@ public class Utils {
         int count = data.getColumnCount();
         LinkedHashMap<String, Integer> sizes = new LinkedHashMap<>(count);
         for (int i = 1; i <= count; i++) {
-            String name = data.getColumnName(i);
+            String name = data.getColumnLabel(i);
             int size = Math.max(data.getColumnDisplaySize(i), name.length()) + padding;
             sizes.put(name, size);
         } return sizes;
@@ -216,7 +216,7 @@ public class Utils {
             } System.out.println(divider);
 
             // get the input of the user indicating which record they want to select
-            String prompt = "Enter the corresponding row_number of the record you want to select (Leave blank to return): ";
+            String prompt = "Enter the corresponding row_num of the record you want to select (Leave blank to return): ";
             int len = values.size();
             while (true) {
                 System.out.print(prompt);

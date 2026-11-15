@@ -492,10 +492,10 @@ public class Member2 implements Application {
                 else field.setValue(Utils.parseInput(sel, field.getType()));
             }
             case "dutytype" -> {
-                String[] duties = {"Inspection", "Maintenance", "Recovery", "Reset"};
-                String sel = Utils.displayMenu("Choose the duty of this train: ", duties);
-                if (sel == null || "Reset".equalsIgnoreCase(sel)) field.setValue(null);
-                else field.setValue(Utils.parseInput(sel, field.getType()));
+                String sql = "SELECT ROW_NUMBER() OVER (ORDER BY tasktype ASC) AS row_num, tasktype AS dutytype, taskdes FROM reftasktype";
+                try (ResultSet res = c.prepareStatement(sql).executeQuery()) {
+                    Utils.retrieveRecordMenu(res, field);
+                } catch (Exception e) {Utils.displayDatabaseError(null, e);}
             }
             case "active" -> {
                 String[] status = {"Active", "Inactive", "Reset"};
@@ -598,18 +598,16 @@ public class Member2 implements Application {
                 }
             }
             case "trainno" -> {
-                while (true) {
-                    Utils.updateValue(field);
-                    if (field.getValue() == null) return;
-                    if (Utils.doesRecordExist(c, "servicetrain", field)) break;
-                    Utils.displayInputError("NO_RECORD");
-                }
+                String sql = "SELECT ROW_NUMBER() OVER (ORDER BY s.trainno ASC) AS row_num, s.trainno, s.dutytype, s.loadton FROM servicetrain s JOIN train t ON s.trainno = t.trainno WHERE t.active = 1;";
+                try (ResultSet res = c.prepareStatement(sql).executeQuery()) {
+                    Utils.retrieveRecordMenu(res, field);
+                } catch (Exception e) {Utils.displayDatabaseError(null, e);}
             }
             case "tasktype" -> {
-                String[] duties = {"Inspection", "Maintenance", "Recovery", "Reset"};
-                String sel = Utils.displayMenu("Choose the type of this task: ", duties);
-                if (sel == null || "Reset".equalsIgnoreCase(sel)) field.setValue(null);
-                else field.setValue(Utils.parseInput(sel, field.getType()));
+                String sql = "SELECT ROW_NUMBER() OVER (ORDER BY tasktype ASC) AS row_num, tasktype, taskdes FROM reftasktype";
+                try (ResultSet res = c.prepareStatement(sql).executeQuery()) {
+                    Utils.retrieveRecordMenu(res, field);
+                } catch (Exception e) {Utils.displayDatabaseError(null, e);}
             }
             case "taskdate", "hours", "details" -> Utils.updateValue(field);
         }
