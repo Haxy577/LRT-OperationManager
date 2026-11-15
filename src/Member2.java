@@ -108,9 +108,9 @@ public class Member2 implements Application {
 
     private void searchTrain() {
         String sql = "SELECT ROW_NUMBER() OVER (ORDER BY t.trainno ASC) row_num, " +
-                "t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, t.active " +
+                "t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, if(t.active = 1, 'Active', 'Inactive') AS active " +
                 "FROM train t LEFT JOIN passengertrain p ON t.trainno = p.trainno " +
-                "LEFT JOIN servicetrain s ON t.trainno = s.trainno";
+                "LEFT JOIN servicetrain s ON t.trainno = s.trainno ";
         String tail = "ORDER BY t.trainno ASC;";
         List<Filter> filters = List.of(
                 new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE", false),
@@ -351,7 +351,7 @@ public class Member2 implements Application {
                 }
 
                 // show the record to be deleted
-                String sql = "SELECT t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, t.active " +
+                String sql = "SELECT t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, if(t.active = 1, 'Active', 'Inactive') AS active " +
                         "FROM train t LEFT JOIN passengertrain p ON t.trainno = p.trainno " +
                         "LEFT JOIN servicetrain s ON t.trainno = s.trainno " +
                         "WHERE t.trainno = ?;";
