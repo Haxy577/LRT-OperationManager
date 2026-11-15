@@ -93,13 +93,13 @@ public class Member2 implements Application {
         String groupBy = "GROUP BY t.trainno";
         String tail = "ORDER BY callcount DESC, t.trainno ASC;";
         List<Filter> mandatory = List.of(
-                new Filter("c.arrat", "Start Date", "DATETIME", null, ">=", false),
-                new Filter("c.arrat", "End Date", "DATETIME", null, "<=", false)
+                new Filter("c.arrat", "Start Date", "DATETIME", ">=", false),
+                new Filter("c.arrat", "End Date", "DATETIME", "<=", false)
         );
         List<Filter> optional = List.of(
-                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE", false),
+                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", "LIKE", false),
                 new Filter("t.traintyp", "Train Type", "VARCHAR(12)", new String[]{"Passenger", "Service"}, "=", false),
-                new Filter("callcount", "Minimum Call Count", "INT UNSIGNED", null, ">=", true)
+                new Filter("callcount", "Minimum Call Count", "INT UNSIGNED", ">=", true)
         );
         try (Connection c = Utils.getSqlConnection()){
             Utils.displaySqlResult(Utils.sqlSearch(c, sql, groupBy, tail, mandatory, optional));
@@ -108,16 +108,16 @@ public class Member2 implements Application {
 
     private void searchTrain() {
         String sql = "SELECT ROW_NUMBER() OVER (ORDER BY t.trainno ASC) row_num, " +
-                "t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, t.active " +
+                "t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, if(t.active = 1, 'Active', 'Inactive') AS active " +
                 "FROM train t LEFT JOIN passengertrain p ON t.trainno = p.trainno " +
-                "LEFT JOIN servicetrain s ON t.trainno = s.trainno";
+                "LEFT JOIN servicetrain s ON t.trainno = s.trainno ";
         String tail = "ORDER BY t.trainno ASC;";
         List<Filter> filters = List.of(
-                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE", false),
-                new Filter("t.label", "Train Label", "VARCHAR(80)", null, "LIKE", false),
+                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", "LIKE", false),
+                new Filter("t.label", "Train Label", "VARCHAR(80)", "LIKE", false),
                 new Filter("t.traintyp", "Train Type", "VARCHAR(12)", new String[]{"Passenger", "Service"}, "=", false),
                 new Filter("t.active", "Train Activation Status", "TINYINT", new String[]{"1", "0"}, "=", false),
-                new Filter("s.dutytype", "Train Duty Type", "VARCHAR(15)", new String[]{"Inspection", "Maintenance", "Recovery"}, "=", false)
+                new Filter("s.dutytype", "Train Duty Type", "VARCHAR(15)", "SELECT ROW_NUMBER() OVER (ORDER BY tasktype ASC) AS row_num, tasktype AS dutytype, taskdes FROM reftasktype", "=", false)
         );
         try (Connection c = Utils.getSqlConnection()){
             ResultSet res = Utils.sqlSearch(c, sql, null, tail, null, filters);
@@ -133,10 +133,10 @@ public class Member2 implements Application {
                 "FROM servicetask s JOIN servicetrain t ON s.trainno = t.trainno WHERE 1=1 ";
         String tail = "ORDER BY s.taskno ASC;";
         List<Filter> filters = List.of(
-                new Filter("s.taskno", "Task Reference", "VARCHAR(16)", null, "LIKE", false),
-                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE", false),
-                new Filter("s.taskdate", "Task Date", "DATE", null, "=", false),
-                new Filter("s.tasktype", "Task Type", "VARCHAR(15)", new String[]{"Inspection", "Maintenance", "Recovery"}, "=", false)
+                new Filter("s.taskno", "Task Reference", "VARCHAR(16)", "LIKE", false),
+                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", "LIKE", false),
+                new Filter("s.taskdate", "Task Date", "DATE", "=", false),
+                new Filter("s.tasktype", "Task Type", "VARCHAR(15)", "SELECT ROW_NUMBER() OVER (ORDER BY tasktype ASC) AS row_num, tasktype, taskdes FROM reftasktype", "=", false)
         );
         try (Connection c = Utils.getSqlConnection()){
             ResultSet res = Utils.sqlSearch(c, sql, null, tail, null, filters);
@@ -351,7 +351,7 @@ public class Member2 implements Application {
                 }
 
                 // show the record to be deleted
-                String sql = "SELECT t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, t.active " +
+                String sql = "SELECT t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, if(t.active = 1, 'Active', 'Inactive') AS active " +
                         "FROM train t LEFT JOIN passengertrain p ON t.trainno = p.trainno " +
                         "LEFT JOIN servicetrain s ON t.trainno = s.trainno " +
                         "WHERE t.trainno = ?;";
@@ -492,10 +492,10 @@ public class Member2 implements Application {
                 else field.setValue(Utils.parseInput(sel, field.getType()));
             }
             case "dutytype" -> {
-                String[] duties = {"Inspection", "Maintenance", "Recovery", "Reset"};
-                String sel = Utils.displayMenu("Choose the duty of this train: ", duties);
-                if (sel == null || "Reset".equalsIgnoreCase(sel)) field.setValue(null);
-                else field.setValue(Utils.parseInput(sel, field.getType()));
+                String sql = "SELECT ROW_NUMBER() OVER (ORDER BY tasktype ASC) AS row_num, tasktype AS dutytype, taskdes FROM reftasktype";
+                try (ResultSet res = c.prepareStatement(sql).executeQuery()) {
+                    Utils.retrieveRecordMenu(res, field);
+                } catch (Exception e) {Utils.displayDatabaseError(null, e);}
             }
             case "active" -> {
                 String[] status = {"Active", "Inactive", "Reset"};
@@ -598,18 +598,16 @@ public class Member2 implements Application {
                 }
             }
             case "trainno" -> {
-                while (true) {
-                    Utils.updateValue(field);
-                    if (field.getValue() == null) return;
-                    if (Utils.doesRecordExist(c, "servicetrain", field)) break;
-                    Utils.displayInputError("NO_RECORD");
-                }
+                String sql = "SELECT ROW_NUMBER() OVER (ORDER BY s.trainno ASC) AS row_num, s.trainno, s.dutytype, s.loadton FROM servicetrain s JOIN train t ON s.trainno = t.trainno WHERE t.active = 1;";
+                try (ResultSet res = c.prepareStatement(sql).executeQuery()) {
+                    Utils.retrieveRecordMenu(res, field);
+                } catch (Exception e) {Utils.displayDatabaseError(null, e);}
             }
             case "tasktype" -> {
-                String[] duties = {"Inspection", "Maintenance", "Recovery", "Reset"};
-                String sel = Utils.displayMenu("Choose the type of this task: ", duties);
-                if (sel == null || "Reset".equalsIgnoreCase(sel)) field.setValue(null);
-                else field.setValue(Utils.parseInput(sel, field.getType()));
+                String sql = "SELECT ROW_NUMBER() OVER (ORDER BY tasktype ASC) AS row_num, tasktype, taskdes FROM reftasktype";
+                try (ResultSet res = c.prepareStatement(sql).executeQuery()) {
+                    Utils.retrieveRecordMenu(res, field);
+                } catch (Exception e) {Utils.displayDatabaseError(null, e);}
             }
             case "taskdate", "hours", "details" -> Utils.updateValue(field);
         }
