@@ -118,14 +118,14 @@ public class Member3 implements Application{
         String sql = "SELECT tc.callno, tc.trainno, p.stncode, tc.platno, p.directn, tc.arrat, tc.depat, tc.status, LEFT(tc.remarks, 20) AS remarks, tc.revno " +
                 "FROM traincall tc JOIN platform p ON tc.platno = p.platno WHERE 1=1 ";
         List<Filter> filters = List.of(
-            new Filter("tc.callno", "Call Reference", "VARCHAR(16)", null, "LIKE", false),    
-            new Filter("tc.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE", false),
-            new Filter("p.stncode", "Station Code", "VARCHAR(8)", null, "LIKE", false),
-            new Filter("tc.platno", "Platform Reference", "VARCHAR(12)", null, "LIKE", false),
+            new Filter("tc.callno", "Call Reference", "VARCHAR(16)", "LIKE", false),
+            new Filter("tc.trainno", "Train Reference", "VARCHAR(12)", "LIKE", false),
+            new Filter("p.stncode", "Station Code", "VARCHAR(8)", "LIKE", false),
+            new Filter("tc.platno", "Platform Reference", "VARCHAR(12)", "LIKE", false),
             new Filter("p.directn", "Direction", "VARCHAR(15)", new String[]{"Northbound", "Southbound"}, "=", false),
             new Filter("tc.status", "State / Status", "VARCHAR(15)", new String[]{"Arrived", "Departed"}, "=", false),
-            new Filter("tc.arrat", "Start Arrival Date", "DATE", null, ">=", false),
-            new Filter("tc.arrat", "End Arrival Date", "DATE", null, "<=", false)
+            new Filter("tc.arrat", "Start Arrival Date", "DATE", ">=", false),
+            new Filter("tc.arrat", "End Arrival Date", "DATE", "<=", false)
         );
         try (Connection c = Utils.getSqlConnection()) {
             // Scanner scanner = new Scanner(System.in);

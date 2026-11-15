@@ -262,11 +262,12 @@ public class Utils {
     /**
      * Configures the values of the specified filters
      *
+     * @param c connection to the database
      * @param mandatory filters that must be configured
      * @param optional filters that may be configured
      * @return configured filters
      */
-    public static List<Filter> configureFilters(List<Filter> mandatory, List<Filter> optional) {
+    public static List<Filter> configureFilters(Connection c, List<Filter> mandatory, List<Filter> optional) {
         List<Filter> filters = new ArrayList<>();
         if (mandatory != null) filters.addAll(mandatory);
         if (optional != null) filters.addAll(optional);
@@ -299,17 +300,26 @@ public class Utils {
                     choice = choice.substring(0, choice.indexOf("->")).trim();
                     Filter filter = null;
                     for (Filter f : filters) if (f.getLabel().equalsIgnoreCase(choice)) filter = f;
+                    if (filter == null) continue;
 
-                    if (filter.getOptions() == null) {
-                        prompt = "Enter " + filter.getLabel() + " filter value (Leave blank to reset): ";
-                        filter.setValue(getInput(prompt, filter.getType()));
-                    } else {
+                    if (filter.getOptions() != null) {
                         List<String> options = new ArrayList<>(List.of(filter.getOptions()));
                         options.add("Reset");
                         prompt = "Enter " + filter.getLabel() + " filter value: ";
                         String sel = displayMenu(prompt, options.toArray(new String[0]));
                         if ("Reset".equalsIgnoreCase(sel)) filter.setValue(null);
                         else filter.setValue(sel);
+                    } else if (filter.getReferenceSql() != null){
+                        try (ResultSet res = c.prepareStatement(filter.getReferenceSql()).executeQuery()) {
+                            String name = filter.getName();
+                            name = name.substring(name.indexOf('.') == -1 ? 0 : name.indexOf('.') + 1); // remove the alias if there is
+                            Field f = new Field(name, filter.getLabel(), filter.getType());
+                            retrieveRecordMenu(res, f);
+                            filter.setValue(f.getValue());
+                        } catch (SQLException e) {Utils.displayDatabaseError(null, e);}
+                    } else {
+                        prompt = "Enter " + filter.getLabel() + " filter value (Leave blank to reset): ";
+                        filter.setValue(getInput(prompt, filter.getType()));
                     }
                 }
             }
@@ -328,7 +338,7 @@ public class Utils {
      * @return the resulting ResultSet of the generated SQL query statement
      */
     public static ResultSet sqlSearch(Connection c, String headSql, String groupBy, String tailSql, List<Filter> mandatory, List<Filter> optional) {
-        List<Filter> filters = configureFilters(mandatory, optional);
+        List<Filter> filters = configureFilters(c, mandatory, optional);
         if (filters == null) return null;
         StringBuilder query = new StringBuilder(headSql.trim());
 

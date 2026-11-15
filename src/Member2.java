@@ -93,13 +93,13 @@ public class Member2 implements Application {
         String groupBy = "GROUP BY t.trainno";
         String tail = "ORDER BY callcount DESC, t.trainno ASC;";
         List<Filter> mandatory = List.of(
-                new Filter("c.arrat", "Start Date", "DATETIME", null, ">=", false),
-                new Filter("c.arrat", "End Date", "DATETIME", null, "<=", false)
+                new Filter("c.arrat", "Start Date", "DATETIME", ">=", false),
+                new Filter("c.arrat", "End Date", "DATETIME", "<=", false)
         );
         List<Filter> optional = List.of(
-                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE", false),
+                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", "LIKE", false),
                 new Filter("t.traintyp", "Train Type", "VARCHAR(12)", new String[]{"Passenger", "Service"}, "=", false),
-                new Filter("callcount", "Minimum Call Count", "INT UNSIGNED", null, ">=", true)
+                new Filter("callcount", "Minimum Call Count", "INT UNSIGNED", ">=", true)
         );
         try (Connection c = Utils.getSqlConnection()){
             Utils.displaySqlResult(Utils.sqlSearch(c, sql, groupBy, tail, mandatory, optional));
@@ -113,11 +113,11 @@ public class Member2 implements Application {
                 "LEFT JOIN servicetrain s ON t.trainno = s.trainno ";
         String tail = "ORDER BY t.trainno ASC;";
         List<Filter> filters = List.of(
-                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE", false),
-                new Filter("t.label", "Train Label", "VARCHAR(80)", null, "LIKE", false),
+                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", "LIKE", false),
+                new Filter("t.label", "Train Label", "VARCHAR(80)", "LIKE", false),
                 new Filter("t.traintyp", "Train Type", "VARCHAR(12)", new String[]{"Passenger", "Service"}, "=", false),
                 new Filter("t.active", "Train Activation Status", "TINYINT", new String[]{"1", "0"}, "=", false),
-                new Filter("s.dutytype", "Train Duty Type", "VARCHAR(15)", new String[]{"Inspection", "Maintenance", "Recovery"}, "=", false)
+                new Filter("s.dutytype", "Train Duty Type", "VARCHAR(15)", "SELECT ROW_NUMBER() OVER (ORDER BY tasktype ASC) AS row_num, tasktype AS dutytype, taskdes FROM reftasktype", "=", false)
         );
         try (Connection c = Utils.getSqlConnection()){
             ResultSet res = Utils.sqlSearch(c, sql, null, tail, null, filters);
@@ -133,10 +133,10 @@ public class Member2 implements Application {
                 "FROM servicetask s JOIN servicetrain t ON s.trainno = t.trainno WHERE 1=1 ";
         String tail = "ORDER BY s.taskno ASC;";
         List<Filter> filters = List.of(
-                new Filter("s.taskno", "Task Reference", "VARCHAR(16)", null, "LIKE", false),
-                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE", false),
-                new Filter("s.taskdate", "Task Date", "DATE", null, "=", false),
-                new Filter("s.tasktype", "Task Type", "VARCHAR(15)", new String[]{"Inspection", "Maintenance", "Recovery"}, "=", false)
+                new Filter("s.taskno", "Task Reference", "VARCHAR(16)", "LIKE", false),
+                new Filter("t.trainno", "Train Reference", "VARCHAR(12)", "LIKE", false),
+                new Filter("s.taskdate", "Task Date", "DATE", "=", false),
+                new Filter("s.tasktype", "Task Type", "VARCHAR(15)", "SELECT ROW_NUMBER() OVER (ORDER BY tasktype ASC) AS row_num, tasktype, taskdes FROM reftasktype", "=", false)
         );
         try (Connection c = Utils.getSqlConnection()){
             ResultSet res = Utils.sqlSearch(c, sql, null, tail, null, filters);

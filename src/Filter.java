@@ -74,4 +74,8 @@ public class Filter extends Field {
     public boolean isHaving() {
         return isHaving;
     }
+
+    public String getReferenceSql() {
+        return referenceSql;
+    }
 }
