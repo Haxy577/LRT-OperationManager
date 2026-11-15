@@ -501,7 +501,7 @@ public class Utils {
             case "NULL" -> "Please input a value";
             default -> "Error";
         };
-        displayError("Invalid input " + msg);
+        displayError("Invalid input: " + msg);
     }
 
     /**
@@ -527,7 +527,7 @@ public class Utils {
      *
      * @param msg the message to display
      */
-    public static void displayError(String msg) {System.out.println(RED + "Error: " + msg + RESET);}
+    public static void displayError(String msg) {System.out.println(RED + msg + RESET);}
 
     /**
      * Checks if all specified fields have non-null values. Would output an error message per field that is null.

@@ -49,14 +49,20 @@ public class Member2 implements Application {
     private void trainMenu() {
         while (true) {
             String prompt = "Which operation do you wish to do:";
-            String[] options = {"Create Train", "Search Train", "Edit Train", "Delete Train", "Return"};
-            switch (Utils.displayMenu(prompt, options)) {
-                case "Create Train" -> createTrain();
-                case "Search Train" -> searchTrain();
-                case "Edit Train" -> updateTrain();
-                case "Delete Train" -> deleteTrain();
-                default -> {return;}
-            }
+            List<String> menu = new ArrayList<>(List.of(
+                    "Create Train", "Search Train",
+                    String.format("Edit %s", selected != null ? selected.getValue() : "Train"),
+                    String.format("Delete %s", selected != null ? selected.getValue() : "Train")
+            ));
+            if (selected != null) menu.add("Reset Selection");
+            menu.add("Return");
+            String choice = Utils.displayMenu(prompt, menu.toArray(new String[0]));
+            if (choice.contains("Create")) createTrain();
+            else if (choice.contains("Search")) searchTrain();
+            else if (choice.contains("Edit")) updateTrain();
+            else if (choice.contains("Delete")) deleteTrain();
+            else if (choice.contains("Reset Selection")) selected = null;
+            else return;
         }
     }
 
@@ -114,7 +120,10 @@ public class Member2 implements Application {
                 new Filter("s.dutytype", "Train Duty Type", "VARCHAR(15)", new String[]{"Inspection", "Maintenance", "Recovery"}, "=", false)
         );
         try (Connection c = Utils.getSqlConnection()){
-            Utils.displaySqlResult(Utils.sqlSearch(c, sql, null, tail, null, filters));
+            ResultSet res = Utils.sqlSearch(c, sql, null, tail, null, filters);
+            Field identifier = new Field("t.trainno", "Train Reference", "VARCHAR(12)");
+            Utils.retrieveRecordMenu(res, identifier);
+            selected = identifier.getValue() == null ? null : identifier;
         } catch (SQLException e) {Utils.displayDatabaseError(null, e);}
     }
 
@@ -155,12 +164,14 @@ public class Member2 implements Application {
         try (Connection c = Utils.getSqlConnection()) {
             // get the record to be updated
             Field ref = fields.get("Train Reference");
-            while (true) {
-                Utils.updateValue(ref);
-                if (ref.getValue() == null) return;
-                if (Utils.doesRecordExist(c, "train", ref)) break;
-                Utils.displayInputError("NO_RECORD");
-            }
+            if (selected == null) {
+                while (true) {
+                    Utils.updateValue(ref);
+                    if (ref.getValue() == null) return;
+                    if (Utils.doesRecordExist(c, "train", ref)) break;
+                    Utils.displayInputError("NO_RECORD");
+                }
+            } else ref.setValue(selected.getValue());
 
             // Retrieve and store the original values
             final String selectSql = "SELECT t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, t.active, t.revno, t.trainno " +
@@ -327,9 +338,11 @@ public class Member2 implements Application {
         try (Connection c = Utils.getSqlConnection()) {
             c.setAutoCommit(false);
             while (true) {
-                Object choice = Utils.getInput(prompt, ref.getType());
-                if (choice == null) return;
-                ref.setValue(choice);
+                if (selected == null) {
+                    Object choice = Utils.getInput(prompt, ref.getType());
+                    if (choice == null) return;
+                    ref.setValue(choice);
+                } else ref.setValue(selected.getValue());
 
                 if (!Utils.doesRecordExist(c, "train", ref)) {
                     Utils.displayInputError("NO_RECORD");
