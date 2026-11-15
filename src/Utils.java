@@ -37,18 +37,17 @@ public class Utils {
     /**
      * Gets an integer input of a user that is within the range of 1 to the specified max inclusive [1,max].
      *
-     * @param prompt an instruction telling to the user what to do
      * @param max the maximum number the user can input, inclusive.
      * @return the valid integer input of the user that is within the specified range
      */
-    public static int getIntInput(String prompt, int max) {
+    public static int getIntInput(int max) {
         while (true) {
             System.out.print("Please enter your choice: ");
             String input = SCANNER.nextLine().trim();
-            if (input.matches("^[0-9]+$")) {
-                int choice = Integer.parseInt(input);
+            if (input.matches("^[0-9]+$") && input.length() <= 12) {
+                long choice = Long.parseLong(input);
                 if (choice >= 1 && choice <= max) {
-                    return choice;
+                    return (int) choice;
                 }
             }
             // if input is invalid, then print error message
