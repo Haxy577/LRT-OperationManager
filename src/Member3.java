@@ -163,6 +163,7 @@ public class Member3 implements Application{
         fields.put("Arrival Time", new Field("arrat", "Arrival Time", "DATETIME"));
         fields.put("Departure Time", new Field("depat", "Departure Time", "DATETIME"));
         fields.put("Status", new Field("status", "Status", "VARCHAR(15)"));
+        fields.put("Remarks", new Field("remarks", "Remarks", "VARCHAR(255)"));
         fields.put("Revision", new Field("revno", "Revision", "INT"));
 
         try (Connection c = Utils.getSqlConnection()) {
@@ -186,6 +187,8 @@ public class Member3 implements Application{
                 Utils.displayError("This train call has already departed.");
                 return;
             }
+
+            normalizeTimestamps(fields, origAttributes);
 
             System.out.println("Loaded Call -> Train: " + fields.get("Train Reference").getValue()
                     + " | Platform: " + fields.get("Platform Reference").getValue()
@@ -281,7 +284,100 @@ public class Member3 implements Application{
     }
 
     private void editTrainCall() {
+        Map<String, Field> fields = new LinkedHashMap<>();
+        fields.put("Call Reference", new Field("callno", "Call Reference", "VARCHAR(16)"));
+        fields.put("Train Reference", new Field("trainno", "Train Reference", "VARCHAR(12)"));
+        fields.put("Platform Reference", new Field("platno", "Platform Reference", "VARCHAR(12)"));
+        fields.put("Arrival Time", new Field("arrat", "Arrival Time", "DATETIME"));
+        fields.put("Departure Time", new Field("depat", "Departure Time", "DATETIME"));
+        fields.put("Status", new Field("status", "Status", "VARCHAR(15)"));
+        fields.put("Remarks", new Field("remarks", "Remarks", "VARCHAR(255)"));
+        fields.put("Revision", new Field("revno", "Revision", "INT"));
 
+        try (Connection c = Utils.getSqlConnection()) {
+            String sqlQuery1 = "SELECT * FROM traincall where callno = ?";
+            Field identifierField = fields.get("Call Reference");
+
+            while (true) {
+                Utils.updateValue(identifierField);
+                if (identifierField.getValue() == null) {
+                    return;
+                } if (Utils.doesRecordExist(c, "traincall", identifierField)) {
+                    break;
+                }
+                Utils.displayInputError("NO_RECORD");
+            }
+
+            Map<String, Object> origAttributes = Utils.loadValues(c, sqlQuery1, identifierField, fields);
+            if (origAttributes.isEmpty())
+                return;
+
+            normalizeTimestamps(fields, origAttributes);
+
+            String currentStatus = (String) fields.get("Status").getValue();
+            System.out.println("Editing Call -> " + identifierField.getValue()
+                    + " | Train: " + fields.get("Train Reference").getValue()
+                    + " | Platform: " + fields.get("Platform Reference").getValue()
+                    + " | Status: " + currentStatus);
+            
+            Field arratField = fields.get("Arrival Time");
+            Field depatField = fields.get("Departure Time");
+            Field remarksField = fields.get("Remarks");
+            Field revnoField = fields.get("Revision");
+            List<Field> editableFields = new ArrayList<>();
+            editableFields.add(arratField);
+            if ("Departed".equals(currentStatus)) {
+                editableFields.add(depatField);
+            }
+            editableFields.add(remarksField);
+            
+            while (true) {
+                List<String> options = Utils.createModifiableMenu(editableFields);
+                int choice = Utils.getIntChoice("Modify Train Call details, then choose 'Confirm':", options.toArray(new String[0]));
+                int totalFields = editableFields.size();
+
+                if (choice == totalFields) { // reset
+                    for (Field f : editableFields) {
+                        f.setValue(origAttributes.get(f.getLabel()));
+                    }
+                } else if (choice == totalFields + 1) { // cibfurn
+                    // arrival time is always required
+                    // departure time is required only if Departed
+                    List<Field> requiredFields = new ArrayList<>();
+                    requiredFields.add(arratField);
+                    if ("Departed".equals(currentStatus)) {
+                        requiredFields.add(depatField);
+                    }
+                    if (!Utils.checkAllFields(requiredFields)) 
+                        continue;
+
+                    // validate arrat and depat inputs if Departed
+                    if ("Departed".equals(currentStatus)) {
+                        Timestamp arrat = toTimestamp(arratField.getValue());
+                        Timestamp depat = toTimestamp(depatField.getValue());
+                        if (!depat.after(arrat)) {
+                            Utils.displayError("Departure time must be after arrival time (" + arrat + ").");
+                            continue;
+                        }
+                    }
+
+                    String sqlQuery2 = "UPDATE traincall SET arrat = ?, depat = ?, remarks = ?, revno = revno + 1 WHERE callno = ? AND revno = ?";
+                    List<Field> updateValues = List.of(arratField, depatField, remarksField, identifierField, revnoField);
+
+                    if (Utils.modifyTable(c, sqlQuery2, updateValues)) {
+                        System.out.println("Train Call successfully updated!");
+                        return;
+                    }
+                } else if (choice == totalFields + 2) { // return
+                    return;
+                } else {
+                    Field selectedField = editableFields.get(choice);
+                    handleTrainCallInput(c, selectedField);
+                }
+            }
+        } catch (SQLException e) {
+            Utils.displayDatabaseError(null, e);
+        }
     }
 
     private void deleteTrainCall() {
@@ -326,5 +422,19 @@ public class Member3 implements Application{
             return Timestamp.valueOf(ldt);
         
         return null;
+    }
+
+    private void normalizeTimestamps(Map<String, Field> fields, Map<String, Object> origAttributes) {
+        String[] timeKeys = {"Arrival Time", "Departure Time"};
+        for (String key : timeKeys) {
+            Field f = fields.get(key);
+            if (f != null && f.getValue() != null) {
+                Timestamp ts = toTimestamp(f.getValue());
+                f.setValue(ts);
+                if (origAttributes != null) {
+                    origAttributes.put(key, ts);
+                }
+            }
+        }
     }
 }
