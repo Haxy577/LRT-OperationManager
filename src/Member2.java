@@ -28,6 +28,10 @@ import java.util.*;
  */
 public class Member2 implements Application {
 
+    private Field selected;
+
+    public Member2() {selected = null;}
+
     @Override
     public void menu() {
         while (true) {
@@ -59,14 +63,20 @@ public class Member2 implements Application {
     private void taskMenu() {
         while (true) {
             String prompt = "Which operation do you wish to do:";
-            String[] options = {"Create Task", "Search Task", "Edit Task", "Delete Task", "Return"};
-            switch (Utils.displayMenu(prompt, options)) {
-                case "Create Task" -> createTask();
-                case "Search Task" -> searchTask();
-                case "Edit Task" -> updateTask();
-                case "Delete Task" -> deleteTask();
-                default -> {return;}
-            }
+            List<String> menu = new ArrayList<>(List.of(
+                    "Create Task", "Search Task",
+                    String.format("Edit %s", selected != null ? selected.getValue() : "Task"),
+                    String.format("Delete %s", selected != null ? selected.getValue() : "Task")
+            ));
+            if (selected != null) menu.add("Reset Selection");
+            menu.add("Return");
+            String choice = Utils.displayMenu(prompt, menu.toArray(new String[0]));
+            if (choice.contains("Create")) createTask();
+            else if (choice.contains("Search")) searchTask();
+            else if (choice.contains("Edit")) updateTask();
+            else if (choice.contains("Delete")) deleteTask();
+            else if (choice.contains("Reset Selection")) selected = null;
+            else return;
         }
     }
 
@@ -120,7 +130,10 @@ public class Member2 implements Application {
                 new Filter("s.tasktype", "Task Type", "VARCHAR(15)", new String[]{"Inspection", "Maintenance", "Recovery"}, "=", false)
         );
         try (Connection c = Utils.getSqlConnection()){
-            Utils.displaySqlResult(Utils.sqlSearch(c, sql, null, tail, null, filters));
+            ResultSet res = Utils.sqlSearch(c, sql, null, tail, null, filters);
+            Field identifier = new Field("taskno", "Task Reference", "VARCHAR(16)");
+            Utils.retrieveRecordMenu(res, identifier);
+            selected = identifier.getValue() == null ? null : identifier;
         } catch (SQLException e) {Utils.displayDatabaseError(null, e);}
     }
 
@@ -262,12 +275,14 @@ public class Member2 implements Application {
         try (Connection c = Utils.getSqlConnection()) {
             // get the record to be updated
             Field ref = fields.get("Task Reference");
-            while (true) {
-                Utils.updateValue(ref);
-                if (ref.getValue() == null) return;
-                if (Utils.doesRecordExist(c, "servicetask", ref)) break;
-                Utils.displayInputError("NO_RECORD");
-            }
+            if (selected == null) {
+                while (true) {
+                    Utils.updateValue(ref);
+                    if (ref.getValue() == null) return;
+                    if (Utils.doesRecordExist(c, "servicetask", ref)) break;
+                    Utils.displayInputError("NO_RECORD");
+                }
+            } else ref.setValue(selected.getValue());
 
             // Retrieve and store the original values
             final String selectSql = "SELECT taskdate, tasktype, hours, details, revno, taskno FROM servicetask WHERE taskno = ?;";
@@ -365,9 +380,11 @@ public class Member2 implements Application {
         try (Connection c = Utils.getSqlConnection()) {
             c.setAutoCommit(false);
             while (true) {
-                Object choice = Utils.getInput(prompt, field.getType());
-                if (choice == null) return;
-                field.setValue(choice);
+                if (selected == null) {
+                    Object choice = Utils.getInput(prompt, field.getType());
+                    if (choice == null) return;
+                    field.setValue(choice);
+                } else field.setValue(selected.getValue());
 
                 if (!Utils.doesRecordExist(c, "servicetask", field)) {
                     Utils.displayInputError("NO_RECORD");

@@ -44,7 +44,7 @@ public class Utils {
         while (true) {
             System.out.print("Please enter your choice: ");
             String input = SCANNER.nextLine().trim();
-            if (input.matches("^[0-9]+$") && input.length() <= 12) {
+            if (input.matches("^[0-9]{1,12}$")) {
                 long choice = Long.parseLong(input);
                 if (choice >= 1 && choice <= max) {
                     return (int) choice;
@@ -74,7 +74,7 @@ public class Utils {
         } System.out.println(prompt);
         int len = options.length;
         for (int i = 0; i < len; i++) System.out.printf("  [%d] %s\n", i + 1, options[i]);
-        return getIntInput(prompt, len) - 1;
+        return getIntInput(len) - 1;
     }
 
     /**
@@ -225,10 +225,12 @@ public class Utils {
                     identifier.setValue(null);
                     return;
                 }
-                if (input.matches("^[0-9]+$")) {
-                    int choice = Integer.parseInt(input);
-                    if (choice >= 1 && choice <= len) identifier.setValue(values.get(choice - 1));
-                    return;
+                if (input.matches("^[0-9]{1,12}$")) {
+                    long choice = Long.parseLong(input);
+                    if (choice >= 1 && choice <= len) {
+                        identifier.setValue(values.get((int) choice - 1));
+                        return;
+                    }
                 }
                 // if input is invalid, then print error message
                 System.out.println(RED + "Please enter an integer between 1 to " + len + "!" + RESET);
@@ -407,7 +409,7 @@ public class Utils {
      * @param field the field to be updated/modified
      */
     public static void updateValue(Field field) {
-        String prompt = String.format("Enter %s: ", field.getLabel());
+        String prompt = String.format("Enter %s (Leave blank to reset and return): ", field.getLabel());
         field.setValue(getInput(prompt, field.getType()));
     }
 
