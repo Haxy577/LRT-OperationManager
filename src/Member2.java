@@ -28,6 +28,10 @@ import java.util.*;
  */
 public class Member2 implements Application {
 
+    private Field selected;
+
+    public Member2() {selected = null;}
+
     @Override
     public void menu() {
         while (true) {
@@ -45,28 +49,40 @@ public class Member2 implements Application {
     private void trainMenu() {
         while (true) {
             String prompt = "Which operation do you wish to do:";
-            String[] options = {"Create Train", "Search Train", "Edit Train", "Delete Train", "Return"};
-            switch (Utils.displayMenu(prompt, options)) {
-                case "Create Train" -> createTrain();
-                case "Search Train" -> searchTrain();
-                case "Edit Train" -> updateTrain();
-                case "Delete Train" -> deleteTrain();
-                default -> {return;}
-            }
+            List<String> menu = new ArrayList<>(List.of(
+                    "Create Train", "Search Train",
+                    String.format("Edit %s", selected != null ? selected.getValue() : "Train"),
+                    String.format("Delete %s", selected != null ? selected.getValue() : "Train")
+            ));
+            if (selected != null) menu.add("Reset Selection");
+            menu.add("Return");
+            String choice = Utils.displayMenu(prompt, menu.toArray(new String[0]));
+            if (choice.contains("Create")) createTrain();
+            else if (choice.contains("Search")) searchTrain();
+            else if (choice.contains("Edit")) updateTrain();
+            else if (choice.contains("Delete")) deleteTrain();
+            else if (choice.contains("Reset Selection")) selected = null;
+            else return;
         }
     }
 
     private void taskMenu() {
         while (true) {
             String prompt = "Which operation do you wish to do:";
-            String[] options = {"Create Task", "Search Task", "Edit Task", "Delete Task", "Return"};
-            switch (Utils.displayMenu(prompt, options)) {
-                case "Create Task" -> createTask();
-                case "Search Task" -> searchTask();
-                case "Edit Task" -> updateTask();
-                case "Delete Task" -> deleteTask();
-                default -> {return;}
-            }
+            List<String> menu = new ArrayList<>(List.of(
+                    "Create Task", "Search Task",
+                    String.format("Edit %s", selected != null ? selected.getValue() : "Task"),
+                    String.format("Delete %s", selected != null ? selected.getValue() : "Task")
+            ));
+            if (selected != null) menu.add("Reset Selection");
+            menu.add("Return");
+            String choice = Utils.displayMenu(prompt, menu.toArray(new String[0]));
+            if (choice.contains("Create")) createTask();
+            else if (choice.contains("Search")) searchTask();
+            else if (choice.contains("Edit")) updateTask();
+            else if (choice.contains("Delete")) deleteTask();
+            else if (choice.contains("Reset Selection")) selected = null;
+            else return;
         }
     }
 
@@ -91,10 +107,11 @@ public class Member2 implements Application {
     }
 
     private void searchTrain() {
-        String sql = "SELECT t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, t.active " +
+        String sql = "SELECT ROW_NUMBER() OVER (ORDER BY t.trainno ASC) row_num, " +
+                "t.trainno, t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, t.active " +
                 "FROM train t LEFT JOIN passengertrain p ON t.trainno = p.trainno " +
                 "LEFT JOIN servicetrain s ON t.trainno = s.trainno";
-        String tail = "ORDER BY s.taskno ASC;";
+        String tail = "ORDER BY t.trainno ASC;";
         List<Filter> filters = List.of(
                 new Filter("t.trainno", "Train Reference", "VARCHAR(12)", null, "LIKE", false),
                 new Filter("t.label", "Train Label", "VARCHAR(80)", null, "LIKE", false),
@@ -103,12 +120,16 @@ public class Member2 implements Application {
                 new Filter("s.dutytype", "Train Duty Type", "VARCHAR(15)", new String[]{"Inspection", "Maintenance", "Recovery"}, "=", false)
         );
         try (Connection c = Utils.getSqlConnection()){
-            Utils.displaySqlResult(Utils.sqlSearch(c, sql, null, tail, null, filters));
+            ResultSet res = Utils.sqlSearch(c, sql, null, tail, null, filters);
+            Field identifier = new Field("t.trainno", "Train Reference", "VARCHAR(12)");
+            Utils.retrieveRecordMenu(res, identifier);
+            selected = identifier.getValue() == null ? null : identifier;
         } catch (SQLException e) {Utils.displayDatabaseError(null, e);}
     }
 
     private void searchTask() {
-        String sql = "SELECT s.taskno, s.taskdate, s.tasktype, s.hours, t.trainno, t.dutytype, t.loadton, s.details " +
+        String sql = "SELECT ROW_NUMBER() OVER (ORDER BY s.taskno ASC) row_num, " +
+                "s.taskno, s.taskdate, s.tasktype, s.hours, t.trainno, t.dutytype, t.loadton, s.details " +
                 "FROM servicetask s JOIN servicetrain t ON s.trainno = t.trainno WHERE 1=1 ";
         String tail = "ORDER BY s.taskno ASC;";
         List<Filter> filters = List.of(
@@ -118,7 +139,10 @@ public class Member2 implements Application {
                 new Filter("s.tasktype", "Task Type", "VARCHAR(15)", new String[]{"Inspection", "Maintenance", "Recovery"}, "=", false)
         );
         try (Connection c = Utils.getSqlConnection()){
-            Utils.displaySqlResult(Utils.sqlSearch(c, sql, null, tail, null, filters));
+            ResultSet res = Utils.sqlSearch(c, sql, null, tail, null, filters);
+            Field identifier = new Field("taskno", "Task Reference", "VARCHAR(16)");
+            Utils.retrieveRecordMenu(res, identifier);
+            selected = identifier.getValue() == null ? null : identifier;
         } catch (SQLException e) {Utils.displayDatabaseError(null, e);}
     }
 
@@ -140,12 +164,14 @@ public class Member2 implements Application {
         try (Connection c = Utils.getSqlConnection()) {
             // get the record to be updated
             Field ref = fields.get("Train Reference");
-            while (true) {
-                Utils.updateValue(ref);
-                if (ref.getValue() == null) return;
-                if (Utils.doesRecordExist(c, "train", ref)) break;
-                Utils.displayInputError("NO_RECORD");
-            }
+            if (selected == null) {
+                while (true) {
+                    Utils.updateValue(ref);
+                    if (ref.getValue() == null) return;
+                    if (Utils.doesRecordExist(c, "train", ref)) break;
+                    Utils.displayInputError("NO_RECORD");
+                }
+            } else ref.setValue(selected.getValue());
 
             // Retrieve and store the original values
             final String selectSql = "SELECT t.label, t.traintyp, p.cars, p.paxcap, s.dutytype, s.loadton, t.active, t.revno, t.trainno " +
@@ -260,12 +286,14 @@ public class Member2 implements Application {
         try (Connection c = Utils.getSqlConnection()) {
             // get the record to be updated
             Field ref = fields.get("Task Reference");
-            while (true) {
-                Utils.updateValue(ref);
-                if (ref.getValue() == null) return;
-                if (Utils.doesRecordExist(c, "servicetask", ref)) break;
-                Utils.displayInputError("NO_RECORD");
-            }
+            if (selected == null) {
+                while (true) {
+                    Utils.updateValue(ref);
+                    if (ref.getValue() == null) return;
+                    if (Utils.doesRecordExist(c, "servicetask", ref)) break;
+                    Utils.displayInputError("NO_RECORD");
+                }
+            } else ref.setValue(selected.getValue());
 
             // Retrieve and store the original values
             final String selectSql = "SELECT taskdate, tasktype, hours, details, revno, taskno FROM servicetask WHERE taskno = ?;";
@@ -310,9 +338,11 @@ public class Member2 implements Application {
         try (Connection c = Utils.getSqlConnection()) {
             c.setAutoCommit(false);
             while (true) {
-                Object choice = Utils.getInput(prompt, ref.getType());
-                if (choice == null) return;
-                ref.setValue(choice);
+                if (selected == null) {
+                    Object choice = Utils.getInput(prompt, ref.getType());
+                    if (choice == null) return;
+                    ref.setValue(choice);
+                } else ref.setValue(selected.getValue());
 
                 if (!Utils.doesRecordExist(c, "train", ref)) {
                     Utils.displayInputError("NO_RECORD");
@@ -363,9 +393,11 @@ public class Member2 implements Application {
         try (Connection c = Utils.getSqlConnection()) {
             c.setAutoCommit(false);
             while (true) {
-                Object choice = Utils.getInput(prompt, field.getType());
-                if (choice == null) return;
-                field.setValue(choice);
+                if (selected == null) {
+                    Object choice = Utils.getInput(prompt, field.getType());
+                    if (choice == null) return;
+                    field.setValue(choice);
+                } else field.setValue(selected.getValue());
 
                 if (!Utils.doesRecordExist(c, "servicetask", field)) {
                     Utils.displayInputError("NO_RECORD");

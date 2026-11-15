@@ -12,6 +12,7 @@ public class Utils {
     private static final String USER = "appuser";
     private static final String PASSWORD = "password";
     private static final Scanner SCANNER = new Scanner(System.in);
+    private static final int PADDING = 2;
 
     public static final String RESET = "\u001b[0m";
     public static final String BOLD = "\u001b[1m";
@@ -34,37 +35,23 @@ public class Utils {
     }
 
     /**
-     * Displays a menu display with the prompt and the choices the user can pick.
-     * Would also handle obtaining a valid input
-     * from the user. It would return the corresponding value of the chosen option.
+     * Gets an integer input of a user that is within the range of 1 to the specified max inclusive [1,max].
      *
-     * @param prompt  an instruction telling the user what to do or what the menu is
-     *                about
-     * @param options array of strings representing the choices to be displayed
-     * @return the chosen option
+     * @param max the maximum number the user can input, inclusive.
+     * @return the valid integer input of the user that is within the specified range
      */
-    public static String displayMenu(String prompt, String[] options) {
-        if (options == null || options.length < 1) {
-            System.err.println("The provided options cannot be null nor empty");
-            return "";
-        }
-
-        System.out.println(prompt);
-        int len = options.length;
-        for (int i = 0; i < len; i++)
-            System.out.printf("  [%d] %s\n", i + 1, options[i]);
-
+    public static int getIntInput(int max) {
         while (true) {
             System.out.print("Please enter your choice: ");
-            String input = SCANNER.nextLine();
-            if (input.matches("^[0-9]+$")) {
-                int choice = Integer.parseInt(input);
-                if (choice >= 1 && choice <= len) {
-                    return options[choice - 1];
+            String input = SCANNER.nextLine().trim();
+            if (input.matches("^[0-9]{1,12}$")) {
+                long choice = Long.parseLong(input);
+                if (choice >= 1 && choice <= max) {
+                    return (int) choice;
                 }
             }
-            // if input is invalid then print error message
-            System.out.println(RED + "Please enter an integer between 1 to " + len + "!" + RESET);
+            // if input is invalid, then print error message
+            System.out.println(RED + "Please enter an integer between 1 to " + max + "!" + RESET);
         }
     }
 
@@ -81,28 +68,97 @@ public class Utils {
      *         that the user made
      */
     public static int getIntChoice(String prompt, String[] options) {
-        if (options == null || options.length < 1)
+        if (options == null || options.length < 1) {
             System.err.println("The provided options cannot be null nor empty");
-
-        System.out.println(prompt);
+            return -1;
+        } System.out.println(prompt);
         int len = options.length;
-        for (int i = 0; i < len; i++)
-            System.out.printf("  [%d] %s\n", i + 1, options[i]);
+        for (int i = 0; i < len; i++) System.out.printf("  [%d] %s\n", i + 1, options[i]);
+        return getIntInput(len) - 1;
+    }
 
-        Scanner sc = new Scanner(System.in);
-        while (true) {
-            System.out.print("Please enter your choice: ");
-            String input = sc.nextLine();
-            if (input.matches("^[0-9]+$")) {
-                int choice = Integer.parseInt(input);
-                if (choice >= 1 && choice <= len) {
-                    return choice - 1;
-                }
-            }
+    /**
+     * Displays a menu display with the prompt and the choices the user can pick.
+     * Would also handle obtaining a valid input
+     * from the user. It would return the corresponding value of the chosen option.
+     *
+     * @param prompt  an instruction telling the user what to do or what the menu is
+     *                about
+     * @param options array of strings representing the choices to be displayed
+     * @return the chosen option
+     */
+    public static String displayMenu(String prompt, String[] options) {
+        if (options == null || options.length < 1) {
+            System.err.println("The provided options cannot be null nor empty");
+            return "";
+        } return options[getIntChoice(prompt, options)];
+    }
 
-            // if input is invalid then print error message
-            System.out.println(RED + "Please enter an integer between 1 to " + len + "!" + RESET);
-        }
+    /**
+     * Returns the display size for each column in the specified result set metadata.
+     *
+     * @param data the result set metadata
+     * @param padding an additional amount of space character to be appended to the final size
+     * @return a linked hash map containing column names mapped to their calculated field sizes
+     * @throws SQLException if an error occurs while reading metadata from the result set
+     */
+    public static LinkedHashMap<String, Integer> getFieldSizes(ResultSetMetaData data, int padding) throws SQLException {
+        if (data == null) return new LinkedHashMap<>();
+        int count = data.getColumnCount();
+        LinkedHashMap<String, Integer> sizes = new LinkedHashMap<>(count);
+        for (int i = 1; i <= count; i++) {
+            String name = data.getColumnName(i);
+            int size = Math.max(data.getColumnDisplaySize(i), name.length()) + padding;
+            sizes.put(name, size);
+        } return sizes;
+    }
+
+    /**
+     * Generates a divider based on the specified linked hash map
+     *
+     * @param fields a linked hash map containing column names mapped to their calculated size
+     * @return a string that would be used to indicate the start/end of the table and to separate the labels from the results
+     */
+    public static String resultDivider(LinkedHashMap<String, Integer> fields) {
+        if (fields == null) return "";
+        StringBuilder divider = new StringBuilder("+");
+        for (String f : fields.keySet()) divider.repeat("-", fields.get(f)).append("+");
+        return divider.toString();
+    }
+
+    /**
+     * Generates a string that would contain all the specified fields within the linked hash map and formatted to fit
+     * the resulting table art
+     *
+     * @param fields a linked hash map containing column names mapped to their calculated size
+     * @return a string that would contain the labels for each column
+     */
+    public static String resultLabels(LinkedHashMap<String, Integer> fields) {
+        if (fields == null) return "";
+        StringBuilder labels = new StringBuilder("|");
+        for (String f : fields.keySet()) labels.append(BOLD + f + RESET).repeat(" ", fields.get(f) - f.length()).append("|");
+        return labels.toString();
+    }
+
+    /**
+     * Generates a string representing a single record within the specified result set. It would be formatted
+     * according to the specified linked hashmap of fields
+     *
+     * @param res the result set of an SQL query
+     * @param fields a linked hash map containing column names mapped to their calculated size
+     * @throws SQLException if an error occurred with the specified result set
+     */
+    public static void displayRow(ResultSet res, LinkedHashMap<String, Integer> fields) throws SQLException {
+        if (res == null) return;
+        StringBuilder row = new StringBuilder("|");
+        for (String f : fields.keySet()) {
+            String val = res.getString(f);
+            val = val == null ? "" : val;
+            int width = fields.get(f);
+            int len = val.length();
+            if (len > width) val = val.substring(0, width - 3) + "..."; // truncate string if longer that reserved width
+            row.append(val).repeat(" ", width - len).append("|");
+        } System.out.println(row);
     }
 
     /**
@@ -115,46 +171,71 @@ public class Utils {
      * @param result the result of the executed SQL statement
      */
     public static void displaySqlResult(ResultSet result) {
-        if (result == null)
-            return;
+        if (result == null) return;
         try {
             ResultSetMetaData data = result.getMetaData();
-            final int fields = data.getColumnCount();
-            final int padding = 2;
-            int[] sizes = new int[fields];
+            LinkedHashMap<String, Integer> fields = getFieldSizes(data, PADDING);
+            String divider = resultDivider(fields);
+            String labels = resultLabels(fields);
 
             // display result field labels
-            StringBuffer divider = new StringBuffer("+");
-            StringBuffer labels = new StringBuffer("|");
-            for (int i = 1; i <= fields; i++) {
-                String name = data.getColumnName(i);
-                int size = Math.max(data.getColumnDisplaySize(i), name.length());
-                sizes[i - 1] = size;
-                labels.append(BOLD + name + RESET + " ".repeat(size - name.length() + padding) + "|");
-                divider.append("-".repeat(size + padding) + "+");
-            }
-            System.out.println(divider + "\n" + labels + "\n" + divider);
+            System.out.println("\n" + divider + "\n" + labels + "\n" + divider);
 
             // display resulting rows
-            while (result.next()) {
-                StringBuffer row = new StringBuffer("|");
-                for (int i = 1; i <= fields; i++) {
-                    String res = result.getString(i);
-                    if (res == null)
-                        res = "";
-
-                    int width = sizes[i - 1];
-                    if (res.length() > width)
-                        res = res.substring(0, width - 3) + "..."; // if longer than the width, truncate the string
-
-                    row.append(res + " ".repeat(width - res.length() + padding) + "|");
-                }
-                System.out.println(row);
-            }
+            while (result.next()) displayRow(result, fields);
             System.out.println(divider);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        } catch (Exception e) {displayDatabaseError(null, e);}
+    }
+
+    /**
+     * Displays each record from the specified result set in a menu like format and prompts the user to select a specific
+     * record according to its row_number value. It would then update the value of the specified identifier based on the chosen
+     * record by the user. If the user were to leave the prompt blank, then it would just set its value to null.
+     *
+     * @param res the result set containing the records to display and select from
+     * @param identifier the field whose value is used as the identifier for each selectable record
+     */
+    public static void retrieveRecordMenu(ResultSet res, Field identifier) {
+        if (res == null) return;
+        try {
+            ResultSetMetaData data = res.getMetaData();
+            LinkedHashMap<String, Integer> fields = getFieldSizes(data, PADDING);
+            String divider = resultDivider(fields);
+            String labels = resultLabels(fields);
+
+            // display result field labels
+            System.out.println("\n" + divider + "\n" + labels + "\n" + divider);
+
+            // store the identifier in a list
+            List<Object> values = new ArrayList<>();
+
+            // display and store the resulting rows
+            while (res.next()) {
+                values.add(res.getObject(identifier.getName()));
+                displayRow(res, fields);
+            } System.out.println(divider);
+
+            // get the input of the user indicating which record they want to select
+            String prompt = "Enter the corresponding row_number of the record you want to select (Leave blank to return): ";
+            int len = values.size();
+            while (true) {
+                System.out.print(prompt);
+                String input = SCANNER.nextLine().trim();
+                if (input.isBlank()) {
+                    identifier.setValue(null);
+                    return;
+                }
+                if (input.matches("^[0-9]{1,12}$")) {
+                    long choice = Long.parseLong(input);
+                    if (choice >= 1 && choice <= len) {
+                        identifier.setValue(values.get((int) choice - 1));
+                        return;
+                    }
+                }
+                // if input is invalid, then print error message
+                System.out.println(RED + "Please enter an integer between 1 to " + len + "!" + RESET);
+            }
+        } catch (Exception e) {displayDatabaseError(null, e);}
     }
 
     /**
@@ -328,7 +409,7 @@ public class Utils {
      * @param field the field to be updated/modified
      */
     public static void updateValue(Field field) {
-        String prompt = String.format("Enter %s: ", field.getLabel());
+        String prompt = String.format("Enter %s (Leave blank to reset and return): ", field.getLabel());
         field.setValue(getInput(prompt, field.getType()));
     }
 
@@ -420,7 +501,7 @@ public class Utils {
             case "NULL" -> "Please input a value";
             default -> "Error";
         };
-        displayError("Invalid input " + msg);
+        displayError("Invalid input: " + msg);
     }
 
     /**
@@ -446,7 +527,7 @@ public class Utils {
      *
      * @param msg the message to display
      */
-    public static void displayError(String msg) {System.out.println(RED + "Error: " + msg + RESET);}
+    public static void displayError(String msg) {System.out.println(RED + msg + RESET);}
 
     /**
      * Checks if all specified fields have non-null values. Would output an error message per field that is null.
