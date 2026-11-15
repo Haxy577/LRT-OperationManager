@@ -378,6 +378,7 @@ public class Member2 implements Application {
 
                 if (main && sub) {
                     c.commit();
+                    selected = null;
                     return;
                 } else c.rollback();
             }
@@ -417,6 +418,7 @@ public class Member2 implements Application {
 
                 if (Utils.safeDeleteRecord(c, "servicetask", null, field)) {
                     c.commit();
+                    selected = null;
                     return;
                 } else c.rollback();
             }
