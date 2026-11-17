@@ -5,11 +5,10 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
+import java.util.Objects;
 
 /**
  * Member 4: Station passenger-flow management
@@ -48,7 +47,6 @@ import java.util.Scanner;
  */
 public class Member4 implements Application {
 
-    private static Scanner sc = new Scanner(System.in);
     private DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"); // DateTime format
 
     private static final int MAX_COUNT = 1000000;
@@ -94,14 +92,18 @@ public class Member4 implements Application {
                     try {
                         PrimaryKey entry = searchMenu(conn);
                         if (entry != null) {
-                            showInterval(conn, entry);
+                            showEntry(conn, entry);
                         }
                     } catch (SQLException e) {
                         System.out.println("Database Error: " + e.getMessage());
                     }
                     break;
                 case 2:
-                    editMenu();
+                    try {
+                        editMenu(conn);
+                    } catch (SQLException e) {
+                        System.out.println("Database Error: " + e.getMessage());
+                    }
                     break;
                 case 3:
                     deleteMenu();
@@ -199,7 +201,7 @@ public class Member4 implements Application {
             isValid = false;
             while (!isValid) {
                 System.out.print("Enter notes: ");
-                String notes = sc.nextLine();
+                String notes = Utils.SCANNER.nextLine();
                 String trimmed = notes.trim();
                 if (trimmed.length() > 255) {
                     System.out.println("Notes cannot exceed length 255");
@@ -239,7 +241,7 @@ public class Member4 implements Application {
         LocalDateTime userDateTime = null;
         while (!isValid) {
             System.out.print(prompt);
-            String dateTime = sc.nextLine();
+            String dateTime = Utils.SCANNER.nextLine();
             try {
                 userDateTime = LocalDateTime.parse(dateTime, formatter);
                 if (userDateTime.getMinute() % 15 != 0 || userDateTime.getSecond() != 0) { // Checks for quarter time
@@ -299,7 +301,7 @@ public class Member4 implements Application {
         while (!isValid) {
             try {
                 System.out.print(prompt);
-                choice = Integer.parseInt(sc.nextLine());
+                choice = Integer.parseInt(Utils.SCANNER.nextLine());
                 if (choice < lowerBound || choice > upperBound) {
                     System.out.println(invalidPrompt);
                 } else {
@@ -333,6 +335,7 @@ public class Member4 implements Application {
 
                 System.out.println(String.format(" [%d] %-25s - %20s", counter++, filterName, filterValue.toString()));
             }
+            System.out.println("--------------------------------");
             System.out.println(" [5] Run Search");
             System.out.println(" [6] Reset Filters");
             System.out.println(" [7] Back to Main Menu");
@@ -418,7 +421,7 @@ public class Member4 implements Application {
                             }
 
                             System.out.print("Enter row number (leave blank to return): ");
-                            String input = sc.nextLine().trim();
+                            String input = Utils.SCANNER.nextLine().trim();
                             if (input.isEmpty())
                                 break;
 
@@ -448,7 +451,7 @@ public class Member4 implements Application {
         return null;
     }
 
-    private void showInterval(Connection conn, PrimaryKey entry) throws SQLException {
+    private Entry showEntry(Connection conn, PrimaryKey entry) throws SQLException {
         String query = """
                             SELECT      stncode, startat, endat, entries, exits, source, notes, revno
                             FROM        gateflow
@@ -463,26 +466,151 @@ public class Member4 implements Application {
             try (ResultSet result = statement.executeQuery()) {
                 if (!result.next()) {
                     System.out.println(Utils.RED + "Record no longer exists" + Utils.RESET);
-                    return;
+                    return null;
                 }
+                String stncode = result.getString("stncode");
+                LocalDateTime startat = result.getTimestamp("startat").toLocalDateTime();
+                LocalDateTime endat = result.getTimestamp("endat").toLocalDateTime();
+                int entries = result.getInt("entries");
+                int exits = result.getInt("exits");
+                String source = result.getString("source");
+                String notes = result.getString("notes");
+                int revno = result.getInt("revno");
+
                 System.out.println("-----------------------");
-                System.out.println("Station  : " + result.getString("stncode"));
-                System.out.println("Start    : " + result.getTimestamp("startat").toLocalDateTime().format(formatter));
-                System.out.println("End      : " + result.getTimestamp("endat").toLocalDateTime().format(formatter));
-                System.out.println("Entries  : " + result.getInt("entries"));
-                System.out.println("Exits    : " + result.getInt("exits"));
-                System.out.println("Source   : " + result.getString("source"));
-                System.out
-                        .println("Notes    : " + (result.getString("notes") == null ? "-" : result.getString("notes")));
-                System.out.println("Revision : " + result.getInt("revno"));
+                System.out.println("Station  : " + stncode);
+                System.out.println("Start    : " + startat.format(formatter));
+                System.out.println("End      : " + endat.format(formatter));
+                System.out.println("Entries  : " + entries);
+                System.out.println("Exits    : " + exits);
+                System.out.println("Source   : " + source);
+                System.out.println("Notes    : " + (notes == null ? "-" : notes));
+                System.out.println("Revision : " + revno);
                 System.out.println("-----------------------");
+                return new Entry(stncode, startat, endat, entries, exits, source, notes, revno);
             }
 
         }
     }
 
-    private void editMenu() {
-        System.out.println("This is the edit menu!");
+    private void editMenu(Connection conn) throws SQLException {
+        PrimaryKey entry = searchMenu(conn);
+        if (entry == null) {
+            return;
+        }
+
+        Entry entryToEdit = showEntry(conn, entry);
+        if (entryToEdit == null) {
+            return;
+        }
+        Map<String, Object> labels = new LinkedHashMap<>();
+        labels.put("Entries", entryToEdit.entries());
+        labels.put("Exits", entryToEdit.exits());
+        labels.put("Source", entryToEdit.source());
+        labels.put("Notes", entryToEdit.notes());
+
+        int newEntries = -1;
+        int newExits = -1;
+        String newSource = null;
+        String newNotes = null;
+
+        boolean isRunning = true;
+        while (isRunning) {
+            System.out.println("Select label to change: ");
+            System.out.println("-----------------------------");
+            int counter = 1;
+            for (Map.Entry<String, Object> ent : labels.entrySet()) {
+                String labelName = ent.getKey();
+                String labelVal = ent.getValue() == null ? "[NONE]" : ent.getValue().toString();
+
+                System.out.println(String.format(" [%d] %-10s - %s", counter++, labelName, labelVal));
+            }
+            System.out.println("---------------");
+            System.out.println(" [5] Save");
+            System.out.println(" [6] Cancel");
+            System.out.println("-----------------------------");
+
+            int choice = getIntInRange("Enter Choice: ", Utils.RED + "Invalid selection." + Utils.RESET, 1, 6);
+            switch (choice) {
+                case 1:
+                    newEntries = getIntInRange(
+                            "Old Entries [" + Utils.BOLD + entryToEdit.entries() + Utils.RESET + "] -> ",
+                            Utils.RED + "Invalid entry count, please try again." + Utils.RESET, 0, MAX_COUNT);
+                    labels.put("Entries", newEntries);
+                    break;
+                case 2:
+                    newExits = getIntInRange("Old Exits [" + Utils.BOLD + entryToEdit.exits() + Utils.RESET + "] -> ",
+                            Utils.RED + "Invalid exit count, please try again." + Utils.RESET, 0, MAX_COUNT);
+                    labels.put("Exits", newExits);
+                    break;
+                case 3:
+                    System.out.println("Old Source [" + Utils.BOLD + entryToEdit.source() + Utils.RESET + "]");
+                    newSource = getSource(conn, false);
+                    labels.put("Source", newSource);
+                    break;
+                case 4:
+                    boolean isValid = false;
+                    while (!isValid) {
+                        System.out.print("Old Notes (leave blank for null/no notes) [" + Utils.BOLD
+                                + (entryToEdit.notes() == null ? "NONE" : entryToEdit.notes()) + Utils.RESET + "] -> ");
+                        newNotes = Utils.SCANNER.nextLine().trim();
+                        if (newNotes.length() > 255) {
+                            System.out.println("Note cannot exceed length of 255.");
+                        } else {
+                            if (newNotes.equals("")) {
+                                newNotes = null;
+                            }
+                            isValid = true;
+                        }
+                    }
+                    labels.put("Notes", newNotes);
+                    break;
+                case 5:
+                    isRunning = false;
+                    break;
+                case 6:
+                    System.out.println("Edit Cancelled! Returning Now ...");
+                    return;
+            }
+        }
+
+        boolean recordChanged = !Objects.equals(labels.get("Entries"), entryToEdit.entries())
+                || !Objects.equals(labels.get("Exits"), entryToEdit.exits())
+                || !Objects.equals(labels.get("Source"), entryToEdit.source())
+                || !Objects.equals(labels.get("Notes"), entryToEdit.notes());
+
+        if (!recordChanged) {
+            System.out.println("No changes has been made. Returning Now ...");
+            return;
+        }
+
+        String query = """
+                                UPDATE      gateflow
+                                SET         entries = ?, exits = ?, source = ?, notes = ?, revno = revno + 1
+                                WHERE       stncode = ?
+                                AND         startat = ?
+                                AND         revno = ?
+                """;
+
+        try (PreparedStatement statement = conn.prepareStatement(query)) {
+            statement.setObject(1, labels.get("Entries"));
+            statement.setObject(2, labels.get("Exits"));
+            statement.setObject(3, labels.get("Source"));
+            statement.setObject(4, labels.get("Notes"));
+            statement.setObject(5, entryToEdit.stncode());
+            statement.setObject(6, entryToEdit.startat());
+            statement.setObject(7, entryToEdit.revno());
+
+            int rows = statement.executeUpdate();
+            if (rows == 0) {
+                System.out.println(Utils.RED
+                        + "Edit failed: the record was changed or deleted since you loaded it. Please search again."
+                        + Utils.RESET);
+            } else {
+                System.out.println("Record edited successfully.");
+            }
+        }
+
     }
 
     private void deleteMenu() {
