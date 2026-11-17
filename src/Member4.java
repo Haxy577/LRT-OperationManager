@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.time.LocalDate;
 
 /**
  * Member 4: Station passenger-flow management
@@ -106,10 +107,18 @@ public class Member4 implements Application {
                     }
                     break;
                 case 3:
-                    deleteMenu();
+                    try {
+                        deleteMenu(conn);
+                    } catch (SQLException e) {
+                        System.out.println("Database Error: " + e.getMessage());
+                    }
                     break;
                 case 4:
-                    report4Menu();
+                    try {
+                        report4Menu(conn);
+                    } catch (SQLException e) {
+                        System.out.println("Database Error: " + e.getMessage());
+                    }
                     break;
                 case 5:
                     isRunning = false;
@@ -613,12 +622,142 @@ public class Member4 implements Application {
 
     }
 
-    private void deleteMenu() {
-        System.out.println("This is the delete menu!");
+    private void deleteMenu(Connection conn) throws SQLException {
+        PrimaryKey entry = searchMenu(conn);
+        if (entry == null)
+            return;
+
+        Entry entryToDelete = showEntry(conn, entry);
+        if (entryToDelete == null)
+            return;
+
+        System.out.println(Utils.RED + "You are about to delete this Interval" + Utils.RESET);
+        System.out.print("Type [Confirm] to confirm the deletion: ");
+        String confirmText = Utils.SCANNER.nextLine();
+        if (confirmText.trim().equalsIgnoreCase("Confirm")) {
+            String query = """
+                    DELETE FROM         gateflow
+                    WHERE               stncode = ?
+                    AND                 startat = ?
+                    AND                 revno = ?
+                    """;
+            try (PreparedStatement statement = conn.prepareStatement(query)) {
+                statement.setString(1, entryToDelete.stncode());
+                statement.setObject(2, entryToDelete.startat());
+                statement.setInt(3, entryToDelete.revno());
+
+                int rows = statement.executeUpdate();
+                if (rows == 0) {
+                    System.out.println(Utils.RED
+                            + "Delete failed: the record was changed or removed since you loaded it. Please search again."
+                            + Utils.RESET);
+                } else {
+                    System.out.println("Record deleted successfully!");
+                }
+            }
+        } else {
+            System.out.println("Deletion cancelled. Returning Now ...");
+        }
     }
 
-    private void report4Menu() {
-        System.out.println("This is the report menu!");
+    private LocalDate getDate(String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            try {
+                return LocalDate.parse(Utils.SCANNER.nextLine().trim());
+            } catch (java.time.format.DateTimeParseException e) {
+                System.out.println(Utils.RED + "Invalid date format, please use yyyy-MM-dd." + Utils.RESET);
+            }
+        }
+    }
+
+    private void report4Menu(Connection conn) throws SQLException {
+        LocalDate from = getDate("Enter start date (yyyy-MM-dd): ");
+        LocalDate to = null;
+
+        boolean isValid = false;
+        while (!isValid) {
+            to = getDate("Enter end date (yyyy-MM-dd): ");
+            if (to.isBefore(from)) {
+                System.out.println(Utils.RED + "Start date cannot be after the end date" + Utils.RESET);
+            } else {
+                isValid = true;
+            }
+        }
+        String stncode = null;
+        String stationChoice = Utils.displayMenu("Station Filter", new String[] { "All Stations", "Choose a Station" });
+        if (stationChoice.equals("Choose a Station"))
+            stncode = getStationCode(conn, null);
+
+        String source = getSource(conn, true);
+        if (source.equals("Reset"))
+            source = null;
+
+        int minEntries = getIntInRange("Minimum total entries (Enter 0 for none): ",
+                Utils.RED + "Invalid Selection. Please try again." + Utils.RESET, 0, MAX_COUNT);
+
+        StringBuilder query = new StringBuilder("""
+                SELECT   g.stncode, s.stnname, COUNT(*) AS intervals,
+                         SUM(g.entries) AS total_entries, SUM(g.exits) AS total_exits,
+                         AVG(g.entries) AS avg_entries,   AVG(g.exits) AS avg_exits
+                FROM     gateflow g
+                JOIN     station s ON s.stncode = g.stncode
+                WHERE    g.startat >= ? AND g.startat < ?
+                """);
+        List<Object> parameters = new ArrayList<>();
+        parameters.add(from.atStartOfDay());
+        parameters.add(to.plusDays(1).atStartOfDay());
+
+        if (stncode != null) {
+            query.append(" AND g.stncode = ?");
+            parameters.add(stncode);
+        }
+
+        if (source != null) {
+            query.append(" AND g.source = ?");
+            parameters.add(source);
+        }
+
+        query.append(" GROUP BY g.stncode, s.stnname");
+        query.append(" HAVING SUM(g.entries) >= ?");
+        parameters.add(minEntries);
+        query.append(" ORDER BY startat DESC, g.stncode");
+
+        System.out.println("\nREPORT 4: Station Entry and Exit Volumes");
+        System.out.println("FROM: " + from + " - " + to);
+        System.out.println("Station: " + (stncode == null ? "ALL" : stncode));
+        System.out.println("Source: " + (source == null ? "ALL" : source));
+        System.out.println("Minimum total Entries: " + minEntries);
+
+        try (PreparedStatement statement = conn.prepareStatement(query.toString())) {
+            for (int i = 0; i < parameters.size(); i++) {
+                statement.setObject(i + 1, parameters.get(i));
+            }
+            try (ResultSet result = statement.executeQuery()) {
+                boolean entryFound = false;
+
+                String header = String.format("| %-7s | %-20s | %9s | %13s | %12s | %14s | %13s |",
+                        "stncode", "station", "intervals", "total_entries", "total_exits", "avg_entries", "avg_exits");
+                String line = "-".repeat(header.length());
+
+                System.out.println(line);
+                System.out.println(header);
+                System.out.println(line);
+
+                while (result.next()) {
+                    entryFound = true;
+                    System.out.println(String.format("| %-7s | %-20s | %9d | %13d | %12d | %14.2f | %13.2f |",
+                            result.getString("stncode"), result.getString("stnname"), result.getInt("intervals"),
+                            result.getLong("total_entries"), result.getLong("total_exits"),
+                            result.getDouble("avg_entries"), result.getDouble("avg_exits")));
+                }
+
+                if (!entryFound) {
+                    System.out.println("No recorded intervals found!");
+                }
+            }
+        }
+
     }
 
 }
