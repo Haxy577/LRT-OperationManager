@@ -13,8 +13,8 @@ public class Utils {
     private static final String URL = "jdbc:mysql://localhost:3306/G09_lrtops";
     private static final String USER = "appuser";
     private static final String PASSWORD = "password";
-    private static final Scanner SCANNER = new Scanner(System.in);
     private static final int PADDING = 2;
+    public static final Scanner SCANNER = new Scanner(System.in);
 
     public static final String RESET = "\u001b[0m";
     public static final String BOLD = "\u001b[1m";
