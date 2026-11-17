@@ -333,7 +333,7 @@ public class Member3 implements Application{
                         continue;
 
                     // validate arrat and depat inputs if Departed
-                    if (!isValidTimeRange(fields.get("Arrival Time"), depatField)) {
+                    if (!isValidTimeRange(arratField, depatField)) {
                         continue;
                     }
 
@@ -357,8 +357,75 @@ public class Member3 implements Application{
     }
 
     private void deleteTrainCall() {
+        Map<String, Field> fields = createCallFields();
+        
+        try (Connection c = Utils.getSqlConnection()) {
+            String sqlQuery1 = "SELECT * FROM traincall where callno = ?";
+            Field identifierField = fields.get("Call Reference");
 
+            while (true) {
+                Utils.updateValue(identifierField);
+                if (identifierField.getValue() == null) {
+                    return;
+                } else if (Utils.doesRecordExist(c, "traincall", identifierField)) {
+                    break;
+                }
+                Utils.displayInputError("NO_RECORD");
+            }
+
+            Map<String, Object> origAttributes = Utils.loadValues(c, sqlQuery1, identifierField, fields);
+            if (origAttributes.isEmpty()) { 
+                return;
+            } else if (!"Arrived".equals(fields.get("Status").getValue())) {
+                Utils.displayError("This train call has already departed.");
+                return;
+            }
+
+            normalizeTimestamps(fields, origAttributes);
+
+            System.out.println("Loaded Call -> Train: " + fields.get("Train Reference").getValue()
+                    + " | Platform: " + fields.get("Platform Reference").getValue()
+                    + " | Arrived: " + fields.get("Arrival Time").getValue());
+
+            String[] choices = {"Yes", "No"};
+            String confirm = Utils.displayMenu("Are you sure you want to delete this record?", choices);
+            if (confirm.equalsIgnoreCase("No")) {
+                return;
+            }
+
+            if (Utils.safeDeleteRecord(c, "traincall", null, identifierField)) {
+                System.out.println("Train Call successfully deleted!");
+            }
+        } catch (SQLException e) {
+            Utils.displayDatabaseError(null, e);
+        }
+        
+        // try (Connection c = Utils.getSqlConnection()) {
+        //     Scanner scanner = new Scanner(System.in);
+        //     System.out.print("Enter Call Reference: ");
+        //     String filter = scanner.nextLine();
+
+        //     String sql = "DELETE FROM traincall where callno = ?";
+
+        //     try (PreparedStatement ps = c.prepareStatement(sql)) {
+        //         ps.setString(1, filter);
+        //         int rows = ps.executeUpdate();
+
+        //         if (rows > 0) {
+        //             System.out.println("Traincall has been deleted!");
+        //         } else {
+        //             System.out.println("No record found.");
+        //         }
+        //     }
+        //     scanner.close();
+        // } catch (SQLException e) {
+        //     Utils.displayDatabaseError(null, e);
+        // }
     }
+
+
+    // ------------------------------------------------------------
+
 
     // helper functions
     private void handleTrainCallInput(Connection c, Field field) {
