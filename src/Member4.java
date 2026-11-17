@@ -7,6 +7,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
@@ -52,6 +53,14 @@ public class Member4 implements Application {
 
     private static final int MAX_COUNT = 1000000;
 
+    private record PrimaryKey(String stncode, LocalDateTime startat) {
+    }
+
+    private record Entry(String stncode, LocalDateTime startat, LocalDateTime endat, int entries, int exits,
+            String source, String notes, int revno) {
+
+    }
+
     @Override
     public void menu() {
         Connection conn = Utils.getSqlConnection();
@@ -83,7 +92,10 @@ public class Member4 implements Application {
                     break;
                 case 1:
                     try {
-                        searchMenu(conn);
+                        PrimaryKey entry = searchMenu(conn);
+                        if (entry != null) {
+                            showInterval(conn, entry);
+                        }
                     } catch (SQLException e) {
                         System.out.println("Database Error: " + e.getMessage());
                     }
@@ -179,7 +191,7 @@ public class Member4 implements Application {
             statement3.setInt(5, exitCount); // Setting the exit count
 
             // Gets the source for the interval
-            String source = getSource(conn);
+            String source = getSource(conn, false);
 
             statement3.setString(6, source); // Setting source to either manual or counter
 
@@ -206,7 +218,7 @@ public class Member4 implements Application {
         }
     }
 
-    private String getSource(Connection conn) throws SQLException {
+    private String getSource(Connection conn, boolean allowReset) throws SQLException {
         ArrayList<String> sources = new ArrayList<>();
         String query4 = "SELECT source FROM refsource;";
         try (PreparedStatement statement4 = conn.prepareStatement(query4)) {
@@ -216,6 +228,8 @@ public class Member4 implements Application {
                 }
             }
         }
+        if (allowReset)
+            sources.add("Reset");
         String[] sourceOptions = sources.toArray(new String[0]);
         return Utils.displayMenu("Source Options: ", sourceOptions);
     }
@@ -298,7 +312,7 @@ public class Member4 implements Application {
         return choice;
     }
 
-    private void searchMenu(Connection conn) throws SQLException {
+    private PrimaryKey searchMenu(Connection conn) throws SQLException {
         // System.out.println("This is the search menu!");
         Map<String, Object> filters = new LinkedHashMap<>();
 
@@ -320,10 +334,11 @@ public class Member4 implements Application {
                 System.out.println(String.format(" [%d] %-25s - %20s", counter++, filterName, filterValue.toString()));
             }
             System.out.println(" [5] Run Search");
-            System.out.println(" [6] Back to Main Menu");
+            System.out.println(" [6] Reset Filters");
+            System.out.println(" [7] Back to Main Menu");
             System.out.println("---------------------------------------------------");
             int choice = getIntInRange("Choice: ",
-                    Utils.RED + "Invalid input, please select from the list above." + Utils.RESET, 1, 6);
+                    Utils.RED + "Invalid input, please select from the list above." + Utils.RESET, 1, 7);
             switch (choice) {
                 case 1: // Gets the station code
                     filters.put("Station Code", getStationCode(conn, null));
@@ -332,6 +347,7 @@ public class Member4 implements Application {
                 case 2:
                     start = getValidDateTime("Enter starting interval (yyyy-MM-dd HH:mm:ss) : ");
                     filters.put("Starting Time Interval", start);
+                    filters.put("Ending Time Interval", null);
 
                     break;
                 case 3:
@@ -352,14 +368,114 @@ public class Member4 implements Application {
                     }
                     break;
                 case 4:
-                    filters.put("Source", getSource(conn));
+                    String src = getSource(conn, true);
+                    filters.put("Source", "Reset".equals(src) ? null : src);
                     break;
                 case 5:
-                    
+                    StringBuilder statement = new StringBuilder("""
+                                    SELECT      stncode, startat, endat, entries, exits, source, notes, revno
+                                    FROM        gateflow
+                                    WHERE       1 = 1
+                            """);
+                    List<Object> parameters = new ArrayList<>();
+
+                    if (filters.get("Station Code") != null) {
+                        statement.append(" AND stncode = ?");
+                        parameters.add(filters.get("Station Code"));
+                    }
+                    if (filters.get("Starting Time Interval") != null) {
+                        statement.append(" AND startat >= ?");
+                        parameters.add(filters.get("Starting Time Interval"));
+                    }
+                    if (filters.get("Ending Time Interval") != null) {
+                        statement.append(" AND startat <= ?");
+                        parameters.add(filters.get("Ending Time Interval"));
+                    }
+                    if (filters.get("Source") != null) {
+                        statement.append(" AND source = ?");
+                        parameters.add(filters.get("Source"));
+                    }
+                    statement.append(" ORDER BY stncode, startat;");
+
+                    try (PreparedStatement stmt = conn.prepareStatement(statement.toString())) {
+                        for (int i = 0; i < parameters.size(); i++) {
+                            stmt.setObject(i + 1, parameters.get(i));
+                        }
+                        try (ResultSet result = stmt.executeQuery()) {
+                            List<PrimaryKey> entries = new ArrayList<>();
+                            System.out.println("------------------------------------------------");
+                            while (result.next()) {
+                                LocalDateTime time = result.getTimestamp("startat").toLocalDateTime();
+                                entries.add(new PrimaryKey(result.getString("stncode"), time));
+                                System.out.println(String.format("[%d] %-5s | %s | Entries : %3d | Exits: %3d | %s",
+                                        entries.size(), result.getString("stncode"), time.format(formatter),
+                                        result.getInt("entries"), result.getInt("exits"), result.getString("source")));
+                            }
+                            System.out.println("------------------------------------------------");
+                            if (entries.isEmpty()) {
+                                System.out.println("No intervals found!");
+                                break;
+                            }
+
+                            System.out.print("Enter row number (leave blank to return): ");
+                            String input = sc.nextLine().trim();
+                            if (input.isEmpty())
+                                break;
+
+                            try {
+                                int pick = Integer.parseInt(input);
+                                if (pick >= 1 && pick <= entries.size())
+                                    return entries.get(pick - 1);
+                            } catch (NumberFormatException e) {
+                            }
+                            System.out.println(Utils.RED + "Invalid selection." + Utils.RESET);
+                        }
+                    }
                     break;
                 case 6:
+                    filters.put("Station Code", null);
+                    filters.put("Starting Time Interval", null);
+                    start = null;
+                    filters.put("Ending Time Interval", null);
+                    filters.put("Source", null);
+                    break;
+                case 7:
                     isRunning = false;
                     break;
+            }
+
+        }
+        return null;
+    }
+
+    private void showInterval(Connection conn, PrimaryKey entry) throws SQLException {
+        String query = """
+                            SELECT      stncode, startat, endat, entries, exits, source, notes, revno
+                            FROM        gateflow
+                            WHERE       stncode = ?
+                            AND         startat = ?;
+                """;
+
+        try (PreparedStatement statement = conn.prepareStatement(query)) {
+            statement.setString(1, entry.stncode());
+            statement.setObject(2, entry.startat());
+
+            try (ResultSet result = statement.executeQuery()) {
+                if (!result.next()) {
+                    System.out.println(Utils.RED + "Record no longer exists" + Utils.RESET);
+                    return;
+                }
+                System.out.println("-----------------------");
+                System.out.println("Station  : " + result.getString("stncode"));
+                System.out.println("Start    : " + result.getTimestamp("startat").toLocalDateTime().format(formatter));
+                System.out.println("End      : " + result.getTimestamp("endat").toLocalDateTime().format(formatter));
+                System.out.println("Entries  : " + result.getInt("entries"));
+                System.out.println("Exits    : " + result.getInt("exits"));
+                System.out.println("Source   : " + result.getString("source"));
+                System.out
+                        .println("Notes    : " + (result.getString("notes") == null ? "-" : result.getString("notes")));
+                System.out.println("Revision : " + result.getInt("revno"));
+                System.out.println("-----------------------");
             }
 
         }
