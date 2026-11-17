@@ -38,6 +38,7 @@ public class Member3 implements Application{
                 "Record Departure",
                 "Edit Train Call",
                 "Delete Train Call",
+                "Generate Report 3",
                 "Exit"
         };
         while (isRunning) {
@@ -47,6 +48,7 @@ public class Member3 implements Application{
                 case "Record Departure" -> recordDeparture();
                 case "Edit Train Call" -> editTrainCall();
                 case "Delete Train Call" -> deleteTrainCall();
+                case "Generate Report 3" -> generateReport3();
                 default -> isRunning = false;
             }
         }
@@ -423,6 +425,34 @@ public class Member3 implements Application{
         // }
     }
 
+    private void generateReport3() {
+        String sql = "SELECT s.stncode, s.stnname, p.platno, p.platname, p.directn, p.capacity, tc.status, " +
+                     "COUNT(tc.callno) AS callcount, COUNT(DISTINCT tc.trainno) AS traincount, " +
+                     "MIN(tc.arrat) AS earliestarrival, MAX(tc.depat) AS latestdeparture " +
+                     "FROM traincall tc " +
+                     "JOIN platform p ON tc.platno = p.platno " +
+                     "JOIN station s ON p.stncode = s.stncode " +
+                     "WHERE DATE(tc.arrat) >= ? AND DATE(tc.arrat) <= ? ";
+        String groupBy = "GROUP BY s.stncode, s.stnname, p.platno, p.platname, p.directn, p.capacity, tc.status ";
+        String tail = "ORDER BY callcount DESC, s.stncode, p.platno, tc.status;";
+        List<Filter> mandatory = List.of(
+            new Filter("tc.arrat", "Start Arrival Date", "DATE", ">=", false),
+            new Filter("tc.arrat", "End Arrival Date", "DATE", "<=", false)
+        );
+        List<Filter> optional = List.of(
+            new Filter("s.stncode", "Station Code", "VARCHAR(8)", "LIKE", false),
+            new Filter("p.platno", "Platform Reference", "VARCHAR(12)", "LIKE", false),
+            new Filter("p.directn", "Direction", "VARCHAR(15)", new String[]{"Northbound", "Southbound"}, "=", false),
+            new Filter("tc.status", "State / Status", "VARCHAR(15)", new String[]{"Arrived", "Departed"}, "=", false),
+            new Filter("callcount", "Minimum Call Count", "INT UNSIGNED", ">=", true)
+        );
+        try (Connection c = Utils.getSqlConnection()){
+            Utils.displaySqlResult(Utils.sqlSearch(c, sql, groupBy, tail, mandatory, optional));
+        } catch (SQLException e) {
+            Utils.displayDatabaseError(null, e);
+        }
+    }
+
 
     // ------------------------------------------------------------
 
@@ -458,15 +488,6 @@ public class Member3 implements Application{
         }
     }
 
-    private Timestamp toTimestamp(Object val) {
-        if (val instanceof Timestamp ts) 
-            return ts;
-        if (val instanceof java.time.LocalDateTime ldt) 
-            return Timestamp.valueOf(ldt);
-        
-        return null;
-    }
-
     private Map<String, Field> createCallFields() {
         Map<String, Field> fields = new LinkedHashMap<>();
         fields.put("Call Reference", new Field("callno", "Call Reference", "VARCHAR(16)"));
@@ -478,6 +499,15 @@ public class Member3 implements Application{
         fields.put("Remarks", new Field("remarks", "Remarks", "VARCHAR(255)"));
         fields.put("Revision", new Field("revno", "Revision", "INT"));
         return fields;
+    }
+
+    private Timestamp toTimestamp(Object val) {
+        if (val instanceof Timestamp ts) 
+            return ts;
+        if (val instanceof java.time.LocalDateTime ldt) 
+            return Timestamp.valueOf(ldt);
+        
+        return null;
     }
 
     private void normalizeTimestamps(Map<String, Field> fields, Map<String, Object> origAttributes) {
