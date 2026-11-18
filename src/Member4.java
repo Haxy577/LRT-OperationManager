@@ -686,15 +686,20 @@ public class Member4 implements Application {
         }
         String stncode = null;
         String stationChoice = Utils.displayMenu("Station Filter", new String[] { "All Stations", "Choose a Station" });
-        if (stationChoice.equals("Choose a Station"))
+        if (stationChoice.equals("Choose a Station")) {
             stncode = getStationCode(conn, null);
-
+            if (stncode == null) {
+                System.out.println("There are no stations to choose from. Returning Now ...");
+                return;
+            }
+        }
+        System.out.println("\nSelect " + Utils.BOLD + "[3] Reset" + Utils.RESET + " to get both sources");
         String source = getSource(conn, true);
-        if (source.equals("Reset"))
+        if ("Reset".equals(source))
             source = null;
 
         int minEntries = getIntInRange("Minimum total entries (Enter 0 for none): ",
-                Utils.RED + "Invalid Selection. Please try again." + Utils.RESET, 0, MAX_COUNT);
+                Utils.RED + "Invalid Selection. Please try again." + Utils.RESET, 0, Integer.MAX_VALUE);
 
         StringBuilder query = new StringBuilder("""
                 SELECT   g.stncode, s.stnname, COUNT(*) AS intervals,
@@ -721,10 +726,10 @@ public class Member4 implements Application {
         query.append(" GROUP BY g.stncode, s.stnname");
         query.append(" HAVING SUM(g.entries) >= ?");
         parameters.add(minEntries);
-        query.append(" ORDER BY startat DESC, g.stncode");
+        query.append(" ORDER BY total_entries DESC, g.stncode");
 
-        System.out.println("\nREPORT 4: Station Entry and Exit Volumes");
-        System.out.println("FROM: " + from + " - " + to);
+        System.out.println("\nREPORT 4: Station Entry and Exit Volumes by Member 4 - Sean Chan");
+        System.out.println("Dates (inclusive): " + from + " to " + to + " | Date basis: interval start");
         System.out.println("Station: " + (stncode == null ? "ALL" : stncode));
         System.out.println("Source: " + (source == null ? "ALL" : source));
         System.out.println("Minimum total Entries: " + minEntries);
@@ -737,7 +742,8 @@ public class Member4 implements Application {
                 boolean entryFound = false;
 
                 String header = String.format("| %-7s | %-20s | %9s | %13s | %12s | %14s | %13s |",
-                        "stncode", "station", "intervals", "total_entries", "total_exits", "avg_entries", "avg_exits");
+                        "stncode", "station name", "intervals", "total_entries", "total_exits", "avg_entries",
+                        "avg_exits");
                 String line = "-".repeat(header.length());
 
                 System.out.println(line);
@@ -751,9 +757,12 @@ public class Member4 implements Application {
                             result.getLong("total_entries"), result.getLong("total_exits"),
                             result.getDouble("avg_entries"), result.getDouble("avg_exits")));
                 }
+                System.out.println(line);
 
                 if (!entryFound) {
                     System.out.println("No recorded intervals found!");
+                } else {
+                    System.out.println("Averages are based on 15 minute intervals. Missing intervals are not counted.");
                 }
             }
         }
