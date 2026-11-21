@@ -98,7 +98,7 @@ public class Member2 implements Application {
         );
         List<Filter> optional = List.of(
                 new Filter("t.trainno", "Train Reference", "VARCHAR(12)", "LIKE", false),
-                new Filter("t.traintyp", "Train Type", "VARCHAR(12)", new String[]{"Passenger", "Service"}, "=", false),
+                new Filter("t.traintyp", "Train Type", "VARCHAR(12)", "SELECT ROW_NUMBER() OVER (ORDER BY traintyp ASC) AS row_num, traintyp, typedes FROM reftraintype", "=", false),
                 new Filter("callcount", "Minimum Call Count", "INT UNSIGNED", ">=", true)
         );
         try (Connection c = Utils.getSqlConnection()){
@@ -115,7 +115,7 @@ public class Member2 implements Application {
         List<Filter> filters = List.of(
                 new Filter("t.trainno", "Train Reference", "VARCHAR(12)", "LIKE", false),
                 new Filter("t.label", "Train Label", "VARCHAR(80)", "LIKE", false),
-                new Filter("t.traintyp", "Train Type", "VARCHAR(12)", new String[]{"Passenger", "Service"}, "=", false),
+                new Filter("t.traintyp", "Train Type", "VARCHAR(12)", "SELECT ROW_NUMBER() OVER (ORDER BY traintyp ASC) AS row_num, traintyp, typedes FROM reftraintype", "=", false),
                 new Filter("t.active", "Train Activation Status", "TINYINT", new String[]{"1", "0"}, "=", false),
                 new Filter("s.dutytype", "Train Duty Type", "VARCHAR(15)", "SELECT ROW_NUMBER() OVER (ORDER BY tasktype ASC) AS row_num, tasktype AS dutytype, taskdes FROM reftasktype", "=", false)
         );
@@ -488,10 +488,10 @@ public class Member2 implements Application {
                 }
             }
             case "traintyp" -> {
-                String[] types = {"Passenger", "Service", "Reset"};
-                String sel = Utils.displayMenu("Choose the type of this train: ", types);
-                if (sel == null || "Reset".equalsIgnoreCase(sel)) field.setValue(null);
-                else field.setValue(Utils.parseInput(sel, field.getType()));
+                String sql = "SELECT ROW_NUMBER() OVER (ORDER BY traintyp ASC) AS row_num, traintyp, typedes FROM reftraintype";
+                try (ResultSet res = c.prepareStatement(sql).executeQuery()) {
+                    Utils.retrieveRecordMenu(res, field);
+                } catch (Exception e) {Utils.displayDatabaseError(null, e);}
             }
             case "dutytype" -> {
                 String sql = "SELECT ROW_NUMBER() OVER (ORDER BY tasktype ASC) AS row_num, tasktype AS dutytype, taskdes FROM reftasktype";
