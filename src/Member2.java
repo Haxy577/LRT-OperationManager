@@ -261,6 +261,7 @@ public class Member2 implements Application {
 
             if (main && sub && del) {
                 c.commit();
+                Utils.displaySuccess(String.format("%s has been successfully updated!", ref.getValue()));
                 return true;
             }
             else c.rollback();
@@ -317,6 +318,7 @@ public class Member2 implements Application {
                             if (!res) c.rollback();
                             else {
                                 c.commit();
+                                Utils.displaySuccess(String.format("%s has been successfully updated!", fields.get("Task Reference").getValue()));
                                 return;
                             }
                         } catch (SQLException e) {Utils.displayDatabaseError(null, e);}
@@ -379,6 +381,7 @@ public class Member2 implements Application {
                 if (main && sub) {
                     c.commit();
                     selected = null;
+                    Utils.displaySuccess(String.format("%s has been successfully deleted!", ref.getValue()));
                     return;
                 } else c.rollback();
             }
@@ -419,6 +422,7 @@ public class Member2 implements Application {
                 if (Utils.safeDeleteRecord(c, "servicetask", null, field)) {
                     c.commit();
                     selected = null;
+                    Utils.displaySuccess(String.format("%s has been successfully deleted!", field.getValue()));
                     return;
                 } else c.rollback();
             }
@@ -546,7 +550,10 @@ public class Member2 implements Application {
                 sub = Utils.modifyTable(c, sqlService, inserts);
             }
 
-            if (main && sub) c.commit();
+            if (main && sub) {
+                c.commit();
+                Utils.displaySuccess(String.format("%s has been successfully created!", Field.searchByName("trainno", fields).getValue()));
+            }
             else c.rollback();
         } catch (SQLException e) {Utils.displayDatabaseError(null, e);}
     }
@@ -577,6 +584,7 @@ public class Member2 implements Application {
                         boolean res = Utils.modifyTable(c, sql, new ArrayList<>(fields.values()));
                         if (res) {
                             c.commit();
+                            Utils.displaySuccess(String.format("%s has been successfully created!", fields.get("Task Reference").getValue()));
                             return;
                         } else c.rollback();
                     }
