@@ -260283,6 +260283,17 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
+-- Table `G09_lrtops`.`refinterval`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `G09_lrtops`.`refinterval` (
+  `startat` DATETIME NOT NULL,
+  `endat` DATETIME NOT NULL,
+  `revno` INT UNSIGNED NOT NULL DEFAULT 1,
+  PRIMARY KEY (`startat`))
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
 -- Table `G09_lrtops`.`gateflow`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `G09_lrtops`.`gateflow` (
@@ -260296,6 +260307,7 @@ CREATE TABLE IF NOT EXISTS `G09_lrtops`.`gateflow` (
   `revno` INT UNSIGNED NOT NULL DEFAULT '1',
   PRIMARY KEY (`stncode`, `startat`),
   INDEX `fk_gateflow_refsource1_idx` (`source` ASC) VISIBLE,
+  INDEX `fk_gateflow_refinterval1_idx` (`startat` ASC) VISIBLE,
   CONSTRAINT `gateflow_ibfk_1`
     FOREIGN KEY (`stncode`)
     REFERENCES `G09_lrtops`.`station` (`stncode`)
@@ -260304,6 +260316,11 @@ CREATE TABLE IF NOT EXISTS `G09_lrtops`.`gateflow` (
   CONSTRAINT `fk_gateflow_refsource1`
     FOREIGN KEY (`source`)
     REFERENCES `G09_lrtops`.`refsource` (`source`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_gateflow_refinterval1`
+    FOREIGN KEY (`startat`)
+    REFERENCES `G09_lrtops`.`refinterval` (`startat`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
@@ -260347,15 +260364,32 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
+-- Table `G09_lrtops`.`reftraintype`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `G09_lrtops`.`reftraintype` (
+  `traintyp` VARCHAR(12) NOT NULL,
+  `typedes` VARCHAR(255) NOT NULL,
+  `revno` INT UNSIGNED NOT NULL DEFAULT '1',
+  PRIMARY KEY (`traintyp`))
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
 -- Table `G09_lrtops`.`train`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `G09_lrtops`.`train` (
   `trainno` VARCHAR(12) NOT NULL,
   `label` VARCHAR(80) NOT NULL,
-  `traintyp` ENUM('Passenger', 'Service') NOT NULL,
+  `traintyp` VARCHAR(12) NOT NULL,
   `active` TINYINT UNSIGNED NOT NULL DEFAULT '1',
   `revno` INT UNSIGNED NOT NULL DEFAULT '1',
-  PRIMARY KEY (`trainno`))
+  PRIMARY KEY (`trainno`),
+  INDEX `fk_train_reftraintype1_idx` (`traintyp` ASC) VISIBLE,
+  CONSTRAINT `fk_train_reftraintype1`
+    FOREIGN KEY (`traintyp`)
+    REFERENCES `G09_lrtops`.`reftraintype` (`traintyp`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_0900_ai_ci;
@@ -260370,9 +260404,9 @@ CREATE TABLE IF NOT EXISTS `G09_lrtops`.`servicetrain` (
   `loadton` DECIMAL(8,2) UNSIGNED NULL,
   `revno` INT UNSIGNED NOT NULL DEFAULT '1',
   PRIMARY KEY (`trainno`),
-  INDEX `fk_servicetrain_reftasktype1_idx` (`tasktype` ASC) VISIBLE,
+  INDEX `fk_servicetrain_reftasktype1_idx` (`dutytype` ASC) VISIBLE,
   CONSTRAINT `fk_servicetrain_reftasktype1`
-    FOREIGN KEY (`tasktype`)
+    FOREIGN KEY (`dutytype`)
     REFERENCES `G09_lrtops`.`reftasktype` (`tasktype`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
@@ -260466,6 +260500,7 @@ SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
 
 
 
+
 -- -----------------------------------------------------
 -- Data Migration
 -- -----------------------------------------------------
@@ -260495,6 +260530,12 @@ VALUES
     ('Inspection', 'Routine and pre-service inspection', 1),
     ('Maintenance', 'Track and infrastructure service maintenance', 1),
     ('Recovery', 'Emergency recovery and towing operations', 1);
+
+-- Populate reftraintype reference details
+INSERT INTO `G09_lrtops`.`reftraintype` (`traintyp`, `typedes`, `revno`)
+VALUES
+  ('Passenger', 'Registered train or consist that carries passengers. Requires a positive car count and nominal passenger capacity (a specification, not a count of riders). Passenger-only fields; Service-only details stay blank.', 1),
+  ('Service', 'Registered non-passenger train used for inspection, maintenance, or recovery. Requires a principal duty and a payload capacity in metric tons (zero allowed). Can have completed service tasks; passenger-only fields stay blank.', 1);
 
 -- Migrate refsource lookup records (if existing in old database)
 INSERT IGNORE INTO `refsource` (`source`, `sourcedes`, `revno`)
