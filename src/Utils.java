@@ -19,6 +19,7 @@ public class Utils {
     public static final String RESET = "\u001b[0m";
     public static final String BOLD = "\u001b[1m";
     public static final String RED = "\u001b[31m";
+    public static final String GREEN = "\u001b[32m";
 
     /**
      * Creates and returns a connection to the database.
@@ -542,6 +543,15 @@ public class Utils {
             default -> "Error";
         };
         displayError("Database Error: " + msg);
+    }
+
+    /**
+     * Prints the specified message to the console with its color being green
+     *
+     * @param msg the message to be displayed
+     */
+    public static void displaySuccess(String msg) {
+        System.out.println(GREEN + msg + RESET);
     }
 
     /**
