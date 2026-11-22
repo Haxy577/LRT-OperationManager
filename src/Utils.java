@@ -11,8 +11,8 @@ import java.util.*;
  */
 public class Utils {
     private static final String URL = "jdbc:mysql://localhost:3306/G09_lrtops";
-    private static final String USER = "appuser";
-    private static final String PASSWORD = "password";
+    private static final String USER = "root";
+    private static final String PASSWORD = "p@ssword";
     private static final int PADDING = 2;
     public static final Scanner SCANNER = new Scanner(System.in);
 

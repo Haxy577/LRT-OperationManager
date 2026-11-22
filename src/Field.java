@@ -56,4 +56,10 @@ public class Field {
         for (Field f : fields) if (target.equalsIgnoreCase(f.getName())) return f;
         return null;
     }
+
+    public static Field searchByLabel(String target, List<Field> fields) {
+        if (target == null || fields == null) return null;
+        for (Field f : fields) if (target.equalsIgnoreCase(f.getLabel())) return f;
+        return null;
+    }
 }
