@@ -4,6 +4,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
+import javax.swing.plaf.TreeUI;
+
 /**
  * A collection of static helper methods
  *
@@ -521,6 +523,8 @@ public class Utils {
             case "PRECISION" -> "The decimal is to large/precise. Please enter a smaller/less precise number";
             case "OVERFLOW" -> "Please input a smaller number";
             case "FUTURE" -> "Date/time cannot be in the future";
+            case "S/N_PLATFORM" -> "Southbound and Northbound Platforms must both exists";
+            case "1_0_ONLY" -> "Input 1 or 0 only!";
             case "NULL" -> "Please input a value";
             default -> "Error";
         };
@@ -597,6 +601,44 @@ public class Utils {
             displayDatabaseError(null, e);
             return false;
         }
+    }
+
+    /**
+     * Checks if north and south platform exist for a station
+     *
+     * @param c connection to database
+     * @param field the reference to station
+     * @return north == 1 && south == 1: 1| north == 0 && south == 1: 2| north == 1 && south == 0: 3| north == 0 && south == 0: -1
+     */
+    public static int doesSouthAndNorthExist(Connection c, Field field) {
+        if (c == null || field == null) return -1;
+        String sql = "SELECT " +
+             "COUNT(CASE WHEN DIRECTN = 'Northbound' THEN 1 END) AS northbound, " +
+             "COUNT(CASE WHEN DIRECTN = 'Southbound' THEN 1 END) AS southbound " +
+             "FROM `platform` " +
+             "WHERE stncode = ?";
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+                ps.setObject(1, field.getValue(), field.getSqlType());
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) {
+                    int north = rs.getInt("northbound");
+                    int south = rs.getInt("southbound");
+
+                    if (north == 1 && south == 1) {
+                        return 1;
+                    } else if (north == 0 && south == 1) {
+                        return 2;
+                    } else if (north == 1 && south == 0) {
+                        return 3;
+                    } else if (north == 0 && south == 0) {
+                        return -1;
+                    }
+                } 
+            } catch (SQLException e) {
+                displayDatabaseError(null, e);
+                return -1;
+        }
+        return -1;
     }
 
     /**
@@ -738,4 +780,6 @@ public class Utils {
             return new LinkedHashMap<>();
         }
     }
+    
+    
 }
